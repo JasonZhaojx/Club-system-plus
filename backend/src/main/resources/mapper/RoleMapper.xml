@@ -1,0 +1,34 @@
+<?xml version="1.0" encoding="UTF-8"?>
+<!DOCTYPE mapper
+        PUBLIC "-//mybatis.org//DTD Mapper 3.0//EN"
+        "https://mybatis.org/dtd/mybatis-3-mapper.dtd">
+<mapper namespace="com.backend.sever.mapper.RoleMapper">
+    <resultMap id="RoleResultMap" type="com.backend.pojo.entity.Role">
+        <id column="id" property="id"/>
+        <result column="code" property="code"/>
+        <result column="name" property="name"/>
+        <result column="description" property="description"/>
+        <result column="created_at" property="createdAt"/>
+        <result column="updated_at" property="updatedAt"/>
+    </resultMap>
+
+    <select id="selectByUserId" resultMap="RoleResultMap">
+        select r.id, r.code, r.name, r.description, r.created_at, r.updated_at
+        from role r
+        inner join user_role ur on ur.role_id = r.id
+        where ur.user_id = #{userId}
+        order by r.id
+    </select>
+
+    <delete id="deleteUserRoles">
+        delete from user_role
+        where user_id = #{userId}
+    </delete>
+
+    <insert id="insertUserRoleByCode">
+        insert ignore into user_role (user_id, role_id)
+        select #{userId}, id
+        from role
+        where code = #{roleCode}
+    </insert>
+</mapper>

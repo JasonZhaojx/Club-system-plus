@@ -19,17 +19,27 @@ public class UserProfileVO {
     private UserStatus status;
     private List<String> roles;
     private List<String> permissions;
+    private UserMembershipVO membership;
 
-    public static UserProfileVO from(User user) {
-        boolean admin = user.getId() != null && user.getId() == 1L;
+    public static UserProfileVO from(User user, List<String> roles, List<String> permissions) {
+        return from(user, roles, permissions, null);
+    }
+
+    public static UserProfileVO from(
+            User user,
+            List<String> roles,
+            List<String> permissions,
+            UserMembershipVO membership
+    ) {
         return new UserProfileVO(
                 user.getId(),
                 user.getUsername(),
                 user.getNickname(),
                 user.getEmail(),
                 user.getStatus(),
-                admin ? List.of("ADMIN") : List.of("USER"),
-                admin ? List.of("dashboard:view", "system:maintain") : List.of()
+                roles,
+                permissions,
+                membership
         );
     }
 }

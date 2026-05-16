@@ -14,6 +14,12 @@
         <result column="updated_at" property="updatedAt"/>
     </resultMap>
 
+    <resultMap id="UserMembershipResultMap" type="com.backend.pojo.vo.UserMembershipVO">
+        <id column="department_id" property="departmentId"/>
+        <result column="department_name" property="departmentName"/>
+        <result column="joined_at" property="joinedAt"/>
+    </resultMap>
+
     <select id="selectByUsername" resultMap="UserResultMap">
         select id,
                username,
@@ -39,4 +45,28 @@
         set status = #{status}
         where id = #{id}
     </update>
+
+    <update id="updateProfile">
+        update app_user
+        set nickname = #{nickname},
+            email = #{email}
+        where id = #{id}
+    </update>
+
+    <update id="updatePassword">
+        update app_user
+        set password_hash = #{passwordHash}
+        where id = #{id}
+    </update>
+
+    <select id="selectMembershipByUserId" resultMap="UserMembershipResultMap">
+        select d.id as department_id,
+               d.name as department_name,
+               cm.joined_at
+        from club_member cm
+        inner join department d on d.id = cm.department_id
+        where cm.user_id = #{userId}
+          and cm.status = 'ACTIVE'
+        limit 1
+    </select>
 </mapper>

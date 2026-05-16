@@ -108,10 +108,10 @@ export default function LoginView() {
             value={password}
           />
         </label>
-        {error && <p className="error">{error}</p>}
         <button disabled={submitting} type="submit">
           {submitting ? '提交中...' : mode === 'login' ? '登录' : '注册并登录'}
         </button>
+        {error && <p className="form-error">{error}</p>}
         {mode === 'login' ? (
           <p className="auth-switch">
             如果没有账号，请先

@@ -40,5 +40,12 @@ export function canAccessAdmin(user: UserProfile | null) {
   if (!user) {
     return false
   }
-  return user.id === 1 || user.roles.includes('ADMIN') || user.permissions.includes('dashboard:view')
+  return hasPermission(user, 'dashboard:view')
+}
+
+export function hasPermission(user: UserProfile | null, permission: string) {
+  if (!user) {
+    return false
+  }
+  return user.permissions.includes(permission) || user.permissions.includes('system:maintain')
 }

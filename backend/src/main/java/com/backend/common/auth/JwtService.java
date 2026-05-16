@@ -13,6 +13,7 @@ import java.io.IOException;
 import java.nio.charset.StandardCharsets;
 import java.time.Instant;
 import java.util.Base64;
+import java.util.List;
 import java.util.Map;
 
 @Service
@@ -56,7 +57,7 @@ public class JwtService {
             }
             Long userId = Long.valueOf(String.valueOf(payload.get("sub")));
             String username = String.valueOf(payload.get("username"));
-            return new UserPrincipal(userId, username);
+            return new UserPrincipal(userId, username, List.of(), List.of());
         } catch (IOException | IllegalArgumentException exception) {
             throw new BusinessException(ErrorCode.UNAUTHORIZED);
         }

@@ -5,6 +5,7 @@ import ActivitiesView from '@/views/ActivitiesView'
 import AdminView from '@/views/AdminView'
 import HomeView from '@/views/HomeView'
 import LoginView from '@/views/LoginView'
+import ProfileView from '@/views/ProfileView'
 import { getCurrentUser, type UserProfile } from '@/api/modules/auth'
 import { canAccessAdmin, getAccessToken, saveUser } from '@/auth'
 
@@ -55,6 +56,15 @@ function RequireAuth({ children }: { children: ReactNode }) {
   return children
 }
 
+function RequireLogin({ children }: { children: ReactNode }) {
+  const token = getAccessToken()
+
+  if (!token) {
+    return <Navigate to="/login?redirect=/profile" replace />
+  }
+  return children
+}
+
 const router = createBrowserRouter([
   {
     path: '/',
@@ -71,6 +81,14 @@ const router = createBrowserRouter([
       {
         path: 'activities',
         element: <ActivitiesView />,
+      },
+      {
+        path: 'profile',
+        element: (
+          <RequireLogin>
+            <ProfileView />
+          </RequireLogin>
+        ),
       },
       {
         path: 'admin',

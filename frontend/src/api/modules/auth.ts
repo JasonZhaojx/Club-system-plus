@@ -10,6 +10,11 @@ export interface UserProfile {
   status: UserStatus
   roles: string[]
   permissions: string[]
+  membership?: {
+    departmentId: number
+    departmentName: string
+    joinedAt: string
+  } | null
 }
 
 export interface AuthToken {
@@ -34,6 +39,7 @@ export function login(payload: LoginPayload) {
     url: '/auth/login',
     method: 'POST',
     data: payload,
+    suppressGlobalError: true,
   })
 }
 
@@ -42,6 +48,7 @@ export function register(payload: RegisterPayload) {
     url: '/auth/register',
     method: 'POST',
     data: payload,
+    suppressGlobalError: true,
   })
 }
 
@@ -49,6 +56,30 @@ export function getCurrentUser() {
   return request<UserProfile>({
     url: '/auth/me',
     method: 'GET',
+  })
+}
+
+export function getProfile() {
+  return request<UserProfile>({
+    url: '/users/me',
+    method: 'GET',
+  })
+}
+
+export function updateProfile(payload: { nickname: string; email?: string | null }) {
+  return request<UserProfile>({
+    url: '/users/me',
+    method: 'PATCH',
+    data: payload,
+  })
+}
+
+export function changePassword(oldPassword: string, newPassword: string) {
+  return request<void>({
+    url: '/users/me/password',
+    method: 'PUT',
+    data: { oldPassword, newPassword },
+    suppressGlobalError: true,
   })
 }
 

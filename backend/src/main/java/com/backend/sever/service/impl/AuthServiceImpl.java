@@ -11,26 +11,36 @@ import com.backend.pojo.vo.UserProfileVO;
 import com.backend.sever.exception.BusinessException;
 import com.backend.sever.exception.ErrorCode;
 import com.backend.sever.mapper.UserMapper;
+import com.backend.sever.mapper.PermissionMapper;
+import com.backend.sever.mapper.RoleMapper;
 import com.backend.sever.service.AuthService;
 import org.springframework.security.crypto.password.PasswordEncoder;
 import org.springframework.stereotype.Service;
 import org.springframework.transaction.annotation.Transactional;
 import org.springframework.util.StringUtils;
 
+import java.util.List;
+
 @Service
 public class AuthServiceImpl implements AuthService {
     private final UserMapper userMapper;
+    private final RoleMapper roleMapper;
+    private final PermissionMapper permissionMapper;
     private final PasswordEncoder passwordEncoder;
     private final JwtService jwtService;
     private final JwtProperties jwtProperties;
 
     public AuthServiceImpl(
             UserMapper userMapper,
+            RoleMapper roleMapper,
+            PermissionMapper permissionMapper,
             PasswordEncoder passwordEncoder,
             JwtService jwtService,
             JwtProperties jwtProperties
     ) {
         this.userMapper = userMapper;
+        this.roleMapper = roleMapper;
+        this.permissionMapper = permissionMapper;
         this.passwordEncoder = passwordEncoder;
         this.jwtService = jwtService;
         this.jwtProperties = jwtProperties;
@@ -52,6 +62,7 @@ public class AuthServiceImpl implements AuthService {
         user.setEmail(StringUtils.hasText(request.getEmail()) ? request.getEmail().trim() : null);
         user.setStatus(UserStatus.NORMAL);
         userMapper.insert(user);
+        roleMapper.insertUserRoleByCode(user.getId(), "CLUB_MEMBER");
         return buildToken(user);
     }
 
@@ -73,7 +84,7 @@ public class AuthServiceImpl implements AuthService {
             throw new BusinessException(ErrorCode.UNAUTHORIZED);
         }
         ensureActive(user);
-        return UserProfileVO.from(user);
+        return buildProfile(user);
     }
 
     private AuthTokenVO buildToken(User user) {
@@ -81,8 +92,20 @@ public class AuthServiceImpl implements AuthService {
                 jwtService.generate(user),
                 "Bearer",
                 jwtProperties.expirationSeconds(),
-                UserProfileVO.from(user)
+                buildProfile(user)
         );
+    }
+
+    private UserProfileVO buildProfile(User user) {
+        List<String> roles = roleMapper.selectByUserId(user.getId())
+                .stream()
+                .map(role -> role.getCode())
+                .toList();
+        List<String> permissions = permissionMapper.selectByUserId(user.getId())
+                .stream()
+                .map(permission -> permission.getCode())
+                .toList();
+        return UserProfileVO.from(user, roles, permissions, userMapper.selectMembershipByUserId(user.getId()));
     }
 
     private void ensureActive(User user) {
