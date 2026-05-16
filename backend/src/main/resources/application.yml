@@ -9,7 +9,7 @@ server:
   servlet:
     context-path: /api
 
-mybatis:
+mybatis-plus:
   mapper-locations: classpath*:mapper/**/*.xml
   configuration:
     map-underscore-to-camel-case: true
@@ -21,3 +21,8 @@ springdoc:
     path: /swagger-ui.html
     operations-sorter: method
     tags-sorter: alpha
+
+app:
+  jwt:
+    secret: change-this-development-secret-at-least-32-chars
+    expiration-seconds: 86400

@@ -4,6 +4,7 @@ import axios, {
   type InternalAxiosRequestConfig,
 } from 'axios'
 import type { ApiResult } from './types'
+import { clearAuth, getAccessToken } from '@/auth'
 
 const http = axios.create({
   baseURL: import.meta.env.VITE_API_BASE_URL ?? '/api',
@@ -11,7 +12,7 @@ const http = axios.create({
 })
 
 http.interceptors.request.use((config: InternalAxiosRequestConfig) => {
-  const token = localStorage.getItem('access_token')
+  const token = getAccessToken()
   if (token) {
     config.headers.Authorization = `Bearer ${token}`
   }
@@ -28,7 +29,7 @@ http.interceptors.response.use(
   },
   (error: AxiosError<ApiResult<unknown>>) => {
     if (error.response?.status === 401) {
-      localStorage.removeItem('access_token')
+      clearAuth()
     }
     return Promise.reject(error)
   },

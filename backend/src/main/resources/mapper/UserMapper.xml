@@ -1,0 +1,42 @@
+<?xml version="1.0" encoding="UTF-8"?>
+<!DOCTYPE mapper
+        PUBLIC "-//mybatis.org//DTD Mapper 3.0//EN"
+        "https://mybatis.org/dtd/mybatis-3-mapper.dtd">
+<mapper namespace="com.backend.sever.mapper.UserMapper">
+    <resultMap id="UserResultMap" type="com.backend.pojo.entity.User">
+        <id column="id" property="id"/>
+        <result column="username" property="username"/>
+        <result column="password_hash" property="passwordHash"/>
+        <result column="nickname" property="nickname"/>
+        <result column="email" property="email"/>
+        <result column="status" property="status"/>
+        <result column="created_at" property="createdAt"/>
+        <result column="updated_at" property="updatedAt"/>
+    </resultMap>
+
+    <select id="selectByUsername" resultMap="UserResultMap">
+        select id,
+               username,
+               password_hash,
+               nickname,
+               email,
+               status,
+               created_at,
+               updated_at
+        from app_user
+        where username = #{username}
+        limit 1
+    </select>
+
+    <select id="countByUsername" resultType="int">
+        select count(1)
+        from app_user
+        where username = #{username}
+    </select>
+
+    <update id="updateStatus">
+        update app_user
+        set status = #{status}
+        where id = #{id}
+    </update>
+</mapper>

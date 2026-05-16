@@ -47,6 +47,21 @@ button {
   gap: 18px;
 }
 
+.topbar nav {
+  align-items: center;
+}
+
+.nav-user {
+  color: #4b5563;
+  font-size: 14px;
+}
+
+.link-button {
+  background: transparent;
+  color: #2563eb;
+  padding: 0;
+}
+
 .content {
   margin: 0 auto;
   max-width: 960px;
@@ -64,4 +79,70 @@ button {
 
 .error {
   color: #dc2626;
+}
+
+.auth-page {
+  display: grid;
+  min-height: calc(100vh - 66px);
+  place-items: center;
+  padding: 32px;
+}
+
+.auth-panel {
+  background: #fff;
+  border: 1px solid #e5e7eb;
+  border-radius: 8px;
+  box-shadow: 0 10px 30px rgb(15 23 42 / 8%);
+  display: grid;
+  gap: 16px;
+  max-width: 420px;
+  padding: 32px;
+  width: 100%;
+}
+
+.auth-panel h1 {
+  font-size: 28px;
+  margin: 0 0 4px;
+}
+
+.auth-panel label {
+  color: #374151;
+  display: grid;
+  font-size: 14px;
+  gap: 8px;
+}
+
+.auth-panel input {
+  border: 1px solid #d1d5db;
+  border-radius: 6px;
+  font: inherit;
+  padding: 10px 12px;
+}
+
+.auth-panel input:focus {
+  border-color: #2563eb;
+  outline: 3px solid rgb(37 99 235 / 14%);
+}
+
+.auth-panel button:disabled {
+  cursor: not-allowed;
+  opacity: 0.65;
+}
+
+.auth-switch {
+  color: #4b5563;
+  font-size: 14px;
+  margin: 0;
+  text-align: center;
+}
+
+.inline-link {
+  background: transparent;
+  color: #2563eb;
+  padding: 0 0 0 2px;
+}
+
+.secondary-button {
+  background: #eef2ff;
+  color: #1d4ed8;
 }
