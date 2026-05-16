@@ -32,14 +32,26 @@ Club System Plus 是一个面向大学社团的网站系统，目标是把社团
 
 ### 前端
 
-- Vue 3
+- React 19
 - TypeScript
 - Vite
-- Pinia
-- Vue Router
-- Element Plus
+- React Router
 - Axios
+- 后期可加入 Zustand / Redux Toolkit，用于登录态、权限菜单和后台筛选条件等共享状态
+- 后期可加入 Ant Design / Arco Design / shadcn/ui，用于后台管理页面
 - ECharts，用于后台访问量和活动数据面板
+
+### RAG 智能问答
+
+- Spring AI，作为 Spring Boot 项目内的 LLM 与 RAG 集成层
+- PDF 解析：Apache PDFBox 或 Apache Tika
+- Embedding 模型：OpenAI `text-embedding-3-small` / `text-embedding-3-large`，或国产 `bge-m3`
+- 大模型：OpenAI、DeepSeek、通义千问、智谱或 Azure OpenAI，可按部署环境替换
+- 向量库：
+  - 课程项目和中小规模部署优先使用 PostgreSQL + pgvector
+  - 如果业务库继续使用 MySQL，则推荐额外接入 Milvus / Qdrant 作为独立向量库
+- Redis，用于热门问题缓存、会话上下文缓存、接口限流
+- RabbitMQ / Kafka，可在后期用于 PDF 导入后的异步解析、切块、向量化
 
 ### 基础设施
 
@@ -48,6 +60,77 @@ Club System Plus 是一个面向大学社团的网站系统，目标是把社团
 - Redis
 - Nginx
 - 后期可加入 Prometheus + Grafana，用于更真实的接口监控
+
+## 当前工程结构与启动方式
+
+当前仓库已经拆分为后端、前端和基础设施目录：
+
+```text
+Club-system-plus/
+  backend/                 Spring Boot 后端
+    src/main/java/com/backend/sever/
+      BackendApplication.java
+      common/              统一响应结构
+      config/              OpenAPI 等配置
+      controller/          REST 接口
+      exception/           业务异常与全局异常处理
+      mapper/              MyBatis Mapper，后续业务表放这里
+      service/             业务服务，后续模块按领域拆分
+    src/main/resources/
+      application.yml      通用配置，默认 context-path 为 /api
+      application-dev.yml  开发环境 MySQL 配置
+      API-design.md        接口设计文档
+    pom.xml
+
+  frontend/                React + Vite 前端
+    src/
+      api/                 Axios 封装与接口模块
+      router/              React Router 路由
+      styles/              全局样式
+      views/               页面视图
+    vite.config.ts         本地开发代理：/api -> http://localhost:8080
+    package.json
+
+  infra/                   后续放 Docker Compose、Nginx、数据库初始化脚本
+```
+
+后端默认配置：
+
+- 服务端口：`8080`
+- 后端接口前缀：`/api`
+- Swagger UI：`http://localhost:8080/api/swagger-ui.html`
+- OpenAPI JSON：`http://localhost:8080/api/v3/api-docs`
+- 开发数据库：`club_system_plus`
+
+启动后端：
+
+```bash
+cd backend
+./mvnw spring-boot:run
+```
+
+Windows PowerShell 可使用：
+
+```powershell
+cd backend
+.\mvnw.cmd spring-boot:run
+```
+
+启动前端：
+
+```bash
+cd frontend
+npm install
+npm run dev
+```
+
+前端开发地址：
+
+```text
+http://localhost:5173
+```
+
+前端通过 Vite 代理访问后端，浏览器请求 `/api/**` 时会转发到 `http://localhost:8080/api/**`。
 
 ## 用户角色设计
 
@@ -276,6 +359,161 @@ Club System Plus 是一个面向大学社团的网站系统，目标是把社团
 
 接口访问量可以先通过 Spring Interceptor 记录到数据库或 Redis，后期再接入专业监控。
 
+### 9. RAG 智能课程与活动问答系统
+
+RAG 问答模块采用“双知识源”设计：课程内容来自后台导入的 PDF 文件，社团信息来自系统内部业务数据和运营内容。两类知识源的处理方式不同，不能简单地全部塞进向量库。
+
+```text
+用户提问
+  |
+  v
+问题路由 / 意图识别
+  |
+  |-- 课程内容问题 -> 检索 PDF 课程知识库
+  |
+  |-- 社团、活动、报名、权限问题 -> 查询系统业务数据 + 检索社团知识库
+  |
+  |-- 混合问题 -> 同时检索 PDF 知识库和系统数据
+  |
+  v
+权限过滤 + 上下文组装
+  |
+  v
+调用大模型生成答案
+  |
+  v
+返回答案 + 引用来源
+```
+
+#### 课程 PDF 知识库
+
+课程内容适合使用 RAG，因为 PDF 通常是非结构化或半结构化资料。导入流程建议如下：
+
+```text
+上传 PDF
+  -> 保存原始文件
+  -> 解析文本
+  -> 清洗页眉、页脚、页码、重复空白
+  -> 按章节、标题或固定 token 数切块
+  -> 生成 embedding
+  -> 写入向量库
+  -> 保存课程、文件名、页码、章节等来源信息
+```
+
+适合回答的问题：
+
+- “这门 Java 课程第二章主要讲什么？”
+- “这个 PDF 里有没有讲事务隔离级别？”
+- “帮我总结一下第三周课程内容。”
+- “这个课程适合零基础吗？”
+- “这份课程资料里提到的作业要求是什么？”
+
+回答时应尽量带上引用来源，例如：
+
+```text
+参考来源：
+- 《Java 入门课程.pdf》第 12 页
+- 《后端开发 Workshop.pdf》第 4 页
+```
+
+#### 系统内部社团信息
+
+社团信息分为动态数据和静态/半静态内容：
+
+```text
+动态数据：
+- 活动时间
+- 活动地点
+- 报名人数
+- 剩余名额
+- 活动状态
+- 用户身份和报名状态
+
+处理方式：
+-> 优先查询 MySQL 业务表，保证答案实时准确。
+
+静态/半静态内容：
+- 社团介绍
+- 部门介绍
+- 加入流程
+- 活动规则
+- 报名规则
+- 常见问题
+- 后台使用说明
+
+处理方式：
+-> 可同步到知识库，进入向量检索。
+```
+
+适合回答的问题：
+
+- “这周有哪些活动？”
+- “我不是社团成员，可以参加 AI 讲座吗？”
+- “技术部主要负责什么？”
+- “如何加入社团？”
+- “报名失败可能是什么原因？”
+- “管理员怎么审核活动？”
+
+其中“这周有哪些活动”“某活动还有没有名额”这类问题必须查业务数据库；“技术部负责什么”“报名规则是什么”这类问题可以走社团知识库。
+
+#### 推荐接口设计
+
+```text
+POST /api/ai/chat
+GET  /api/ai/sessions
+GET  /api/ai/sessions/{sessionId}/messages
+
+POST /api/admin/knowledge/pdf/upload
+POST /api/admin/knowledge/pdf/{materialId}/reindex
+GET  /api/admin/knowledge/materials
+GET  /api/admin/knowledge/chunks
+
+POST /api/admin/knowledge/system/sync
+GET  /api/admin/knowledge/system/sources
+```
+
+#### 推荐后端服务拆分
+
+```text
+ai/
+  controller/
+    AiChatController
+    KnowledgeImportController
+  service/
+    RagChatService
+    PdfKnowledgeService
+    SystemKnowledgeService
+    EmbeddingService
+    VectorSearchService
+    QuestionRouterService
+  model/
+    dto/
+    vo/
+  repository/
+```
+
+各服务职责：
+
+- `AiChatController`：提供聊天接口和会话查询接口。
+- `KnowledgeImportController`：提供 PDF 上传、重新索引、知识库管理接口。
+- `PdfKnowledgeService`：解析 PDF、切块、生成向量。
+- `SystemKnowledgeService`：从活动、部门、公告、FAQ 等系统内部数据构造知识上下文。
+- `QuestionRouterService`：判断问题应该查 PDF、系统数据，还是混合检索。
+- `VectorSearchService`：屏蔽 Milvus、Qdrant、pgvector 等不同向量库实现。
+- `RagChatService`：完成检索、权限过滤、Prompt 组装和大模型调用。
+
+#### 权限与安全边界
+
+RAG 模块必须继承系统原有权限模型：
+
+- 游客只能查询公开课程资料、公开活动和公开社团介绍。
+- 注册用户可以查询自己可见的报名、活动和课程内容。
+- 社团成员可以查询成员可见课程、内部活动和部门信息。
+- 部门负责人只能查询本部门管理范围内的内部数据。
+- 社长和维护者可以查询管理后台允许范围内的数据。
+
+检索阶段就要做权限过滤，不能先把不可见内容交给大模型再要求模型“不要泄露”。大模型不是权限系统，权限必须由后端代码保证。
+
 ## 推荐数据库设计
 
 ### 用户与权限
@@ -312,11 +550,75 @@ Club System Plus 是一个面向大学社团的网站系统，目标是把社团
 - `operation_log`
 - `system_config`
 
+### RAG 与知识库
+
+- `course`
+- `course_material`
+- `knowledge_document`
+- `knowledge_chunk`
+- `ai_chat_session`
+- `ai_chat_message`
+
+建议字段：
+
+```text
+course_material
+- id
+- course_id
+- file_name
+- file_url
+- file_size
+- parser_status       uploaded / parsing / indexed / failed
+- error_message
+- created_by
+- created_at
+- updated_at
+
+knowledge_document
+- id
+- source_type         course_pdf / club_info / department / activity / faq / manual
+- source_id
+- title
+- visibility          public / registered / member / department / admin
+- department_id
+- status              draft / published / archived
+- content_hash
+- created_at
+- updated_at
+
+knowledge_chunk
+- id
+- document_id
+- chunk_index
+- title
+- content
+- page_number
+- token_count
+- embedding_ref       向量库中的向量 ID，或 pgvector 字段
+- content_hash
+- created_at
+
+ai_chat_session
+- id
+- user_id
+- title
+- created_at
+- updated_at
+
+ai_chat_message
+- id
+- session_id
+- role                user / assistant / system
+- content
+- retrieved_refs      JSON，记录引用的 chunk、活动、课程或部门
+- created_at
+```
+
 ## 推荐后端包结构
 
 ```text
 backend/
-  src/main/java/.../clubsystem/
+  src/main/java/com/backend/sever/
     auth/
     user/
     role/
@@ -325,6 +627,11 @@ backend/
     member/
     activity/
     coupon/
+    ai/
+      controller/
+      service/
+      repository/
+      model/
     dashboard/
     common/
       config/
@@ -340,17 +647,19 @@ backend/
 frontend/
   src/
     api/
+      modules/
     assets/
     components/
     layouts/
     router/
-    stores/
+    hooks/
     views/
       public/
       auth/
       user/
       member/
       admin/
+      ai/
 ```
 
 ## 权限矩阵草案
@@ -375,7 +684,7 @@ frontend/
 ### Phase 0：项目初始化
 
 - 初始化 Spring Boot 后端。
-- 初始化 Vue 3 前端。
+- 初始化 React + Vite 前端。
 - 编写 Docker Compose，提供 MySQL 和 Redis。
 - 统一接口响应结构。
 - 配置全局异常处理。
@@ -460,7 +769,25 @@ frontend/
 - 社长/维护者能看到基础运营数据。
 - 系统能记录主要接口访问情况。
 
-### Phase 7：优化与部署
+### Phase 7：RAG 智能课程与活动问答
+
+- PDF 课程资料上传。
+- PDF 文本解析、清洗、切块。
+- 生成 embedding 并写入向量库。
+- 系统内部社团信息同步到知识库。
+- 活动、报名、名额等动态问题直接查询业务数据库。
+- 智能问答接口。
+- 前端聊天页面。
+- 后台知识库管理页面。
+
+交付标准：
+
+- 管理员可以上传课程 PDF 并完成索引。
+- 用户可以基于课程 PDF 提问，并看到答案来源。
+- 用户可以询问社团、部门、活动和报名相关问题。
+- 不同角色只能查询自己有权限访问的知识和业务数据。
+
+### Phase 8：优化与部署
 
 - Nginx 部署。
 - Docker Compose 一键启动。
@@ -489,6 +816,7 @@ MVP 必须包含：
 - 抢券/抢票
 - Redis 高并发控制
 - 后台数据面板
+- RAG 智能课程与活动问答的基础版本
 
 第三阶段再加入：
 
@@ -496,6 +824,7 @@ MVP 必须包含：
 - 专业监控
 - 通知系统
 - 更完整的审计和日志
+- RAG 异步索引、混合检索、问答质量评估和运营统计
 
 ## 关键技术难点
 
@@ -504,6 +833,9 @@ MVP 必须包含：
 - 抢券/抢票：需要 Redis 原子操作，避免超卖和重复抢。
 - 后台统计：需要在不影响业务性能的情况下记录访问数据。
 - 前端权限：不同角色看到的菜单和按钮不同，后端也必须再次校验权限。
+- RAG 权限过滤：课程资料、内部活动、部门信息在检索阶段就必须按用户角色过滤。
+- RAG 实时性：活动时间、名额、报名状态等动态信息不能只依赖向量库，必须查询业务数据库。
+- PDF 解析质量：需要处理页眉页脚、表格、目录、分页和重复文本，否则会影响检索效果。
 
 ## 建议的开发顺序
 
@@ -517,3 +849,6 @@ MVP 必须包含：
 8. 优惠券普通领取。
 9. Redis 抢券/抢票。
 10. 后台统计面板。
+11. PDF 课程知识库导入和索引。
+12. 系统内部社团信息同步知识库。
+13. RAG 聊天接口和前端问答页面。
