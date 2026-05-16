@@ -21,8 +21,9 @@ import {
 import { assignUserRoles, listRoles, type Role } from '@/api/modules/rbac'
 import { hasPermission } from '@/auth'
 import { getErrorMessage, showToast } from '@/toast'
+import ActivityAdminPanel from './ActivityAdminPanel'
 
-type AdminTab = 'members' | 'departments'
+type AdminTab = 'members' | 'departments' | 'activities'
 
 const memberStatusNames: Record<MemberStatus, string> = {
   ACTIVE: '正常',
@@ -67,6 +68,10 @@ export default function AdminView() {
   const canManageDepartments = hasPermission(user, 'department:manage')
   const canManageRoles = hasPermission(user, 'department:manage')
   const canManageMembers = hasPermission(user, 'member:manage')
+  const canManageActivities =
+    hasPermission(user, 'activity:create') ||
+    hasPermission(user, 'activity:update') ||
+    hasPermission(user, 'activity:review')
 
   const visibleDepartments = useMemo(() => {
     if (canManageDepartments) {
@@ -328,6 +333,15 @@ export default function AdminView() {
             部门管理
           </button>
         )}
+        {canManageActivities && (
+          <button
+            className={activeTab === 'activities' ? 'active' : ''}
+            onClick={() => setActiveTab('activities')}
+            type="button"
+          >
+            活动管理
+          </button>
+        )}
       </div>
 
       {activeTab === 'members' && canManageMembers && (
@@ -534,6 +548,8 @@ export default function AdminView() {
           </div>
         </section>
       )}
+
+      {activeTab === 'activities' && canManageActivities && <ActivityAdminPanel user={user} />}
 
       {memberModalOpen && (
         <div className="modal-backdrop" role="presentation">

@@ -1,0 +1,65 @@
+<?xml version="1.0" encoding="UTF-8"?>
+<!DOCTYPE mapper
+        PUBLIC "-//mybatis.org//DTD Mapper 3.0//EN"
+        "https://mybatis.org/dtd/mybatis-3-mapper.dtd">
+<mapper namespace="com.backend.sever.mapper.ActivityRegistrationMapper">
+    <resultMap id="ActivityRegistrationResultMap" type="com.backend.pojo.entity.ActivityRegistration">
+        <id column="id" property="id"/>
+        <result column="activity_id" property="activityId"/>
+        <result column="user_id" property="userId"/>
+        <result column="status" property="status"/>
+        <result column="registered_at" property="registeredAt"/>
+        <result column="cancelled_at" property="cancelledAt"/>
+        <result column="created_at" property="createdAt"/>
+        <result column="updated_at" property="updatedAt"/>
+    </resultMap>
+
+    <resultMap id="ActivityRegistrationVOResultMap" type="com.backend.pojo.vo.ActivityRegistrationVO">
+        <id column="id" property="id"/>
+        <result column="activity_id" property="activityId"/>
+        <result column="activity_title" property="activityTitle"/>
+        <result column="activity_image_url" property="activityImageUrl"/>
+        <result column="activity_location" property="activityLocation"/>
+        <result column="activity_start_time" property="activityStartTime"/>
+        <result column="status" property="status"/>
+        <result column="registered_at" property="registeredAt"/>
+    </resultMap>
+
+    <select id="selectByActivityAndUser" resultMap="ActivityRegistrationResultMap">
+        select id, activity_id, user_id, status, registered_at, cancelled_at, created_at, updated_at
+        from activity_registration
+        where activity_id = #{activityId}
+          and user_id = #{userId}
+        limit 1
+    </select>
+
+    <update id="reactivateRegistration">
+        update activity_registration
+        set status = 'REGISTERED',
+            registered_at = current_timestamp,
+            cancelled_at = null
+        where id = #{id}
+    </update>
+
+    <update id="updateStatus">
+        update activity_registration
+        set status = #{status},
+            cancelled_at = case when #{status} = 'CANCELLED' then current_timestamp else cancelled_at end
+        where id = #{id}
+    </update>
+
+    <select id="selectUserRegistrations" resultMap="ActivityRegistrationVOResultMap">
+        select ar.id,
+               ar.activity_id,
+               a.title as activity_title,
+               a.image_url as activity_image_url,
+               a.location as activity_location,
+               a.start_time as activity_start_time,
+               ar.status,
+               ar.registered_at
+        from activity_registration ar
+        inner join activity a on a.id = ar.activity_id
+        where ar.user_id = #{userId}
+        order by ar.registered_at desc, ar.id desc
+    </select>
+</mapper>

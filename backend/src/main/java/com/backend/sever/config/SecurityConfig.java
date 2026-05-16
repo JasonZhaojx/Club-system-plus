@@ -9,6 +9,7 @@ import jakarta.servlet.http.HttpServletResponse;
 import org.springframework.boot.context.properties.EnableConfigurationProperties;
 import org.springframework.context.annotation.Bean;
 import org.springframework.context.annotation.Configuration;
+import org.springframework.http.HttpMethod;
 import org.springframework.http.MediaType;
 import org.springframework.security.config.annotation.method.configuration.EnableMethodSecurity;
 import org.springframework.security.config.annotation.web.builders.HttpSecurity;
@@ -41,9 +42,10 @@ public class SecurityConfig {
                                 "/auth/register",
                                 "/auth/login",
                                 "/swagger-ui.html",
-                                "/swagger-ui/**",
-                                "/v3/api-docs/**"
+                        "/swagger-ui/**",
+                        "/v3/api-docs/**"
                         ).permitAll()
+                        .requestMatchers(HttpMethod.GET, "/activities", "/activities/*").permitAll()
                         .anyRequest().authenticated()
                 )
                 .exceptionHandling(exception -> exception.authenticationEntryPoint((request, response, authException) -> {

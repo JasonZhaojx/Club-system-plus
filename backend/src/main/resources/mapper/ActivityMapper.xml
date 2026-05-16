@@ -1,0 +1,120 @@
+<?xml version="1.0" encoding="UTF-8"?>
+<!DOCTYPE mapper
+        PUBLIC "-//mybatis.org//DTD Mapper 3.0//EN"
+        "https://mybatis.org/dtd/mybatis-3-mapper.dtd">
+<mapper namespace="com.backend.sever.mapper.ActivityMapper">
+    <resultMap id="ActivityResultMap" type="com.backend.pojo.entity.Activity">
+        <id column="id" property="id"/>
+        <result column="title" property="title"/>
+        <result column="summary" property="summary"/>
+        <result column="detail" property="detail"/>
+        <result column="category" property="category"/>
+        <result column="category_name" property="categoryName"/>
+        <result column="image_url" property="imageUrl"/>
+        <result column="location" property="location"/>
+        <result column="start_time" property="startTime"/>
+        <result column="end_time" property="endTime"/>
+        <result column="capacity" property="capacity"/>
+        <result column="registered_count" property="registeredCount"/>
+        <result column="status" property="status"/>
+        <result column="required_role_code" property="requiredRoleCode"/>
+        <result column="creator_id" property="creatorId"/>
+        <result column="reviewer_id" property="reviewerId"/>
+        <result column="published_at" property="publishedAt"/>
+        <result column="created_at" property="createdAt"/>
+        <result column="updated_at" property="updatedAt"/>
+    </resultMap>
+
+    <sql id="ActivityColumns">
+        id, title, summary, detail, category, category_name, image_url, location, start_time, end_time,
+        capacity, registered_count, status, required_role_code, creator_id, reviewer_id, published_at,
+        created_at, updated_at
+    </sql>
+
+    <select id="selectActivityPage" resultMap="ActivityResultMap">
+        select <include refid="ActivityColumns"/>
+        from activity
+        <where>
+            <if test="keyword != null and keyword != ''">
+                and (
+                    title like concat('%', #{keyword}, '%')
+                    or summary like concat('%', #{keyword}, '%')
+                    or detail like concat('%', #{keyword}, '%')
+                    or location like concat('%', #{keyword}, '%')
+                )
+            </if>
+            <if test="category != null and category != ''">
+                and category = #{category}
+            </if>
+            <if test="status != null">
+                and status = #{status}
+            </if>
+        </where>
+        <choose>
+            <when test="sort == 'latest'">order by published_at desc, id desc</when>
+            <when test="sort == 'capacity'">order by (capacity - registered_count) desc, id desc</when>
+            <otherwise>order by start_time asc, id desc</otherwise>
+        </choose>
+        limit #{size}
+        offset #{offset}
+    </select>
+
+    <select id="countActivities" resultType="long">
+        select count(1)
+        from activity
+        <where>
+            <if test="keyword != null and keyword != ''">
+                and (
+                    title like concat('%', #{keyword}, '%')
+                    or summary like concat('%', #{keyword}, '%')
+                    or detail like concat('%', #{keyword}, '%')
+                    or location like concat('%', #{keyword}, '%')
+                )
+            </if>
+            <if test="category != null and category != ''">
+                and category = #{category}
+            </if>
+            <if test="status != null">
+                and status = #{status}
+            </if>
+        </where>
+    </select>
+
+    <update id="updateActivity">
+        update activity
+        set title = #{title},
+            summary = #{summary},
+            detail = #{detail},
+            category = #{category},
+            category_name = #{categoryName},
+            image_url = #{imageUrl},
+            location = #{location},
+            start_time = #{startTime},
+            end_time = #{endTime},
+            capacity = #{capacity},
+            required_role_code = #{requiredRoleCode}
+        where id = #{id}
+    </update>
+
+    <update id="updateStatus">
+        update activity
+        set status = #{status},
+            reviewer_id = #{reviewerId},
+            published_at = case when #{status} = 'PUBLISHED' then current_timestamp else published_at end
+        where id = #{id}
+    </update>
+
+    <update id="incrementRegistrationCount">
+        update activity
+        set registered_count = registered_count + 1
+        where id = #{id}
+          and status = 'PUBLISHED'
+          and registered_count &lt; capacity
+    </update>
+
+    <update id="decrementRegistrationCount">
+        update activity
+        set registered_count = case when registered_count > 0 then registered_count - 1 else 0 end
+        where id = #{id}
+    </update>
+</mapper>

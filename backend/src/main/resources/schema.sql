@@ -1,3 +1,5 @@
+alter database club_system_plus character set utf8mb4 collate utf8mb4_unicode_ci;
+
 create table if not exists app_user (
     id bigint primary key auto_increment,
     username varchar(50) not null,
@@ -84,6 +86,54 @@ create table if not exists department_leader (
     key idx_department_leader_user_id (user_id),
     key idx_department_leader_department_id (department_id)
 );
+
+create table if not exists activity (
+    id bigint primary key auto_increment,
+    title varchar(120) not null,
+    summary varchar(255) not null,
+    detail text not null,
+    category varchar(50) not null,
+    category_name varchar(50) not null,
+    image_url varchar(500) null,
+    location varchar(120) not null,
+    start_time datetime not null,
+    end_time datetime not null,
+    capacity int not null,
+    registered_count int not null default 0,
+    status varchar(30) not null default 'DRAFT',
+    required_role_code varchar(50) null,
+    creator_id bigint null,
+    reviewer_id bigint null,
+    published_at datetime null,
+    created_at datetime not null default current_timestamp,
+    updated_at datetime not null default current_timestamp on update current_timestamp,
+    key idx_activity_status (status),
+    key idx_activity_category (category),
+    key idx_activity_start_time (start_time)
+);
+
+create table if not exists activity_registration (
+    id bigint primary key auto_increment,
+    activity_id bigint not null,
+    user_id bigint not null,
+    status varchar(20) not null default 'REGISTERED',
+    registered_at datetime not null default current_timestamp,
+    cancelled_at datetime null,
+    created_at datetime not null default current_timestamp,
+    updated_at datetime not null default current_timestamp on update current_timestamp,
+    unique key uk_activity_registration_user (activity_id, user_id),
+    key idx_activity_registration_user_id (user_id),
+    key idx_activity_registration_status (status)
+);
+
+alter table app_user convert to character set utf8mb4 collate utf8mb4_unicode_ci;
+alter table role convert to character set utf8mb4 collate utf8mb4_unicode_ci;
+alter table permission convert to character set utf8mb4 collate utf8mb4_unicode_ci;
+alter table department convert to character set utf8mb4 collate utf8mb4_unicode_ci;
+alter table club_member convert to character set utf8mb4 collate utf8mb4_unicode_ci;
+alter table department_leader convert to character set utf8mb4 collate utf8mb4_unicode_ci;
+alter table activity convert to character set utf8mb4 collate utf8mb4_unicode_ci;
+alter table activity_registration convert to character set utf8mb4 collate utf8mb4_unicode_ci;
 
 insert ignore into role (code, name, description) values
 ('REGISTERED_USER', '注册用户', '已注册但不是社团成员'),
@@ -194,3 +244,52 @@ inner join role r on r.code = 'REGISTERED_USER'
 left join user_role ur on ur.user_id = u.id
 where u.username <> 'root'
   and ur.id is null;
+
+insert ignore into activity (
+    id, title, summary, detail, category, category_name, image_url, location,
+    start_time, end_time, capacity, registered_count, status, required_role_code, creator_id, published_at
+) values
+(1, 'AI 应用工作坊', '从知识库设计到前端原型，完成一次 AI 应用从 0 到 1 的实践。', '本次工作坊围绕 AI 应用完整流程展开，成员将分组完成用户问题定义、知识库结构设计、Prompt 评审和前端原型演示。活动结束后会进行方案复盘，帮助成员把课程内容转化为可展示作品。', 'technology', '技术工作坊', 'https://images.unsplash.com/photo-1519389950473-47ba0277781c?auto=format&fit=crop&w=1200&q=80', '创新中心 A201', '2026-06-05 14:00:00', '2026-06-05 17:00:00', 80, 0, 'PUBLISHED', null, 1, current_timestamp),
+(2, 'Hack Night 校园产品挑战', '限时交付校园服务产品，覆盖产品、设计、工程和展示。', 'Hack Night 以限时交付为核心，题目覆盖校园服务、活动推荐、学习助手和社团运营工具。现场提供技术导师支持，最终以产品演示、代码质量和用户价值三个维度评选优秀团队。', 'competition', '竞赛挑战', 'https://images.unsplash.com/photo-1504384308090-c894fdcc538d?auto=format&fit=crop&w=1200&q=80', '工程楼路演厅', '2026-06-12 18:30:00', '2026-06-12 22:30:00', 120, 0, 'PUBLISHED', 'CLUB_MEMBER', 1, current_timestamp),
+(3, '职业分享：从校园项目到真实业务', '邀请校友分享项目作品、面试表达和真实业务协作经验。', '活动邀请创业校友和企业工程师分享从校园 idea 到真实产品的过程，包括用户访谈、MVP 搭建、工程协作、简历表达和面试中的项目讲述方式。', 'career', '职业分享', 'https://images.unsplash.com/photo-1556761175-b413da4baf72?auto=format&fit=crop&w=1200&q=80', '商学院报告厅', '2026-06-20 19:00:00', '2026-06-20 21:00:00', 200, 0, 'PUBLISHED', null, 1, current_timestamp),
+(4, 'Community Day 社团开放日', '了解部门方向、项目成果和新成员加入流程。', 'Community Day 面向所有学生开放。技术部、运营部、设计部和外联部展示过往项目成果，并提供部门咨询。新成员可以现场了解加入流程和后续活动安排。', 'community', '社群活动', 'https://images.unsplash.com/photo-1521737604893-d14cc237f11d?auto=format&fit=crop&w=1200&q=80', '学生活动中心', '2026-07-02 13:30:00', '2026-07-02 16:30:00', 160, 0, 'PUBLISHED', null, 1, current_timestamp);
+
+update activity
+set title = 'AI 应用工作坊',
+    summary = '从知识库设计到前端原型，完成一次 AI 应用从 0 到 1 的实践。',
+    detail = '本次工作坊围绕 AI 应用完整流程展开，成员将分组完成用户问题定义、知识库结构设计、Prompt 评审和前端原型演示。活动结束后会进行方案复盘，帮助成员把课程内容转化为可展示作品。',
+    category = 'technology',
+    category_name = '技术工作坊',
+    image_url = 'https://images.unsplash.com/photo-1519389950473-47ba0277781c?auto=format&fit=crop&w=1200&q=80',
+    location = '创新中心 A201'
+where id = 1;
+
+update activity
+set title = 'Hack Night 校园产品挑战',
+    summary = '限时交付校园服务产品，覆盖产品、设计、工程和展示。',
+    detail = 'Hack Night 以限时交付为核心，题目覆盖校园服务、活动推荐、学习助手和社团运营工具。现场提供技术导师支持，最终以产品演示、代码质量和用户价值三个维度评选优秀团队。',
+    category = 'competition',
+    category_name = '竞赛挑战',
+    image_url = 'https://images.unsplash.com/photo-1504384308090-c894fdcc538d?auto=format&fit=crop&w=1200&q=80',
+    location = '工程楼路演厅'
+where id = 2;
+
+update activity
+set title = '职业分享：从校园项目到真实业务',
+    summary = '邀请校友分享项目作品、面试表达和真实业务协作经验。',
+    detail = '活动邀请创业校友和企业工程师分享从校园 idea 到真实产品的过程，包括用户访谈、MVP 搭建、工程协作、简历表达和面试中的项目讲述方式。',
+    category = 'career',
+    category_name = '职业分享',
+    image_url = 'https://images.unsplash.com/photo-1556761175-b413da4baf72?auto=format&fit=crop&w=1200&q=80',
+    location = '商学院报告厅'
+where id = 3;
+
+update activity
+set title = 'Community Day 社团开放日',
+    summary = '了解部门方向、项目成果和新成员加入流程。',
+    detail = 'Community Day 面向所有学生开放。技术部、运营部、设计部和外联部展示过往项目成果，并提供部门咨询。新成员可以现场了解加入流程和后续活动安排。',
+    category = 'community',
+    category_name = '社群活动',
+    image_url = 'https://images.unsplash.com/photo-1521737604893-d14cc237f11d?auto=format&fit=crop&w=1200&q=80',
+    location = '学生活动中心'
+where id = 4;

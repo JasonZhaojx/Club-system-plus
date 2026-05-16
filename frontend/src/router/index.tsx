@@ -1,10 +1,15 @@
 import { useEffect, useState, type ReactNode } from 'react'
 import { Navigate, createBrowserRouter } from 'react-router-dom'
 import App from '@/App'
+import AboutView from '@/views/AboutView'
+import ActivityDetailView from '@/views/ActivityDetailView'
 import ActivitiesView from '@/views/ActivitiesView'
 import AdminView from '@/views/AdminView'
+import DepartmentsView from '@/views/DepartmentsView'
 import HomeView from '@/views/HomeView'
+import LeadersView from '@/views/LeadersView'
 import LoginView from '@/views/LoginView'
+import MyActivitiesView from '@/views/MyActivitiesView'
 import ProfileView from '@/views/ProfileView'
 import { getCurrentUser, type UserProfile } from '@/api/modules/auth'
 import { canAccessAdmin, getAccessToken, saveUser } from '@/auth'
@@ -56,11 +61,11 @@ function RequireAuth({ children }: { children: ReactNode }) {
   return children
 }
 
-function RequireLogin({ children }: { children: ReactNode }) {
+function RequireLogin({ children, redirect = '/profile' }: { children: ReactNode; redirect?: string }) {
   const token = getAccessToken()
 
   if (!token) {
-    return <Navigate to="/login?redirect=/profile" replace />
+    return <Navigate to={`/login?redirect=${encodeURIComponent(redirect)}`} replace />
   }
   return children
 }
@@ -83,10 +88,34 @@ const router = createBrowserRouter([
         element: <ActivitiesView />,
       },
       {
+        path: 'activities/:activityId',
+        element: <ActivityDetailView />,
+      },
+      {
+        path: 'about',
+        element: <AboutView />,
+      },
+      {
+        path: 'departments',
+        element: <DepartmentsView />,
+      },
+      {
+        path: 'leaders',
+        element: <LeadersView />,
+      },
+      {
         path: 'profile',
         element: (
-          <RequireLogin>
+          <RequireLogin redirect="/profile">
             <ProfileView />
+          </RequireLogin>
+        ),
+      },
+      {
+        path: 'my-activities',
+        element: (
+          <RequireLogin redirect="/my-activities">
+            <MyActivitiesView />
           </RequireLogin>
         ),
       },

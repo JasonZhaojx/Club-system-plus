@@ -40,7 +40,7 @@ export default function App() {
     if (!toast) {
       return
     }
-    const timer = window.setTimeout(() => setToast(null), 5000)
+    const timer = window.setTimeout(() => setToast(null), 2000)
     return () => window.clearTimeout(timer)
   }, [toast])
 
@@ -95,8 +95,12 @@ export default function App() {
           <NavLink to="/" end>
             首页
           </NavLink>
+          <NavLink to="/about">社团介绍</NavLink>
+          <NavLink to="/departments">部门展示</NavLink>
+          <NavLink to="/leaders">重要成员</NavLink>
           <NavLink to="/activities">活动</NavLink>
           {user && <NavLink to="/profile">我的资料</NavLink>}
+          {user && <NavLink to="/my-activities">我的活动</NavLink>}
           {canAccessAdmin(user) && <NavLink to="/admin">后台</NavLink>}
         </nav>
       </aside>
