@@ -20,6 +20,21 @@
         <result column="joined_at" property="joinedAt"/>
     </resultMap>
 
+    <resultMap id="AdminUserResultMap" type="com.backend.pojo.vo.AdminUserVO">
+        <id column="id" property="id"/>
+        <result column="username" property="username"/>
+        <result column="nickname" property="nickname"/>
+        <result column="email" property="email"/>
+        <result column="status" property="status"/>
+        <result column="department_id" property="departmentId"/>
+        <result column="department_name" property="departmentName"/>
+        <result column="joined_at" property="joinedAt"/>
+        <result column="member_status" property="memberStatus"/>
+        <result column="department_leader" property="departmentLeader"/>
+        <result column="roles" property="roles"/>
+        <result column="created_at" property="createdAt"/>
+    </resultMap>
+
     <select id="selectByUsername" resultMap="UserResultMap">
         select id,
                username,
@@ -68,5 +83,63 @@
         where cm.user_id = #{userId}
           and cm.status = 'ACTIVE'
         limit 1
+    </select>
+
+    <select id="countAdminUsers" resultType="long">
+        select count(1)
+        from app_user u
+        left join club_member cm on cm.user_id = u.id
+        <where>
+            <if test="keyword != null and keyword != ''">
+                u.username like concat('%', #{keyword}, '%')
+            </if>
+            <if test="departmentId != null">
+                and cm.department_id = #{departmentId}
+            </if>
+        </where>
+    </select>
+
+    <select id="selectAdminUserPage" resultMap="AdminUserResultMap">
+        select u.id,
+               u.username,
+               u.nickname,
+               u.email,
+               u.status,
+               cm.department_id,
+               d.name as department_name,
+               cm.joined_at,
+               cm.status as member_status,
+               case when dl.id is null then false else true end as department_leader,
+               group_concat(distinct r.code order by r.code separator ',') as roles,
+               u.created_at
+        from app_user u
+        left join club_member cm on cm.user_id = u.id
+        left join department d on d.id = cm.department_id
+        left join department_leader dl on dl.user_id = u.id
+            and dl.department_id = cm.department_id
+        left join user_role ur on ur.user_id = u.id
+        left join role r on r.id = ur.role_id
+        <where>
+            <if test="keyword != null and keyword != ''">
+                u.username like concat('%', #{keyword}, '%')
+            </if>
+            <if test="departmentId != null">
+                and cm.department_id = #{departmentId}
+            </if>
+        </where>
+        group by u.id,
+                 u.username,
+                 u.nickname,
+                 u.email,
+                 u.status,
+                 cm.department_id,
+                 d.name,
+                 cm.joined_at,
+                 cm.status,
+                 dl.id,
+                 u.created_at
+        order by u.id
+        limit #{size}
+        offset #{offset}
     </select>
 </mapper>

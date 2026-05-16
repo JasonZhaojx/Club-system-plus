@@ -14,4 +14,6 @@ public interface RoleMapper extends BaseMapper<Role> {
     int deleteUserRoles(@Param("userId") Long userId);
 
     int insertUserRoleByCode(@Param("userId") Long userId, @Param("roleCode") String roleCode);
+
+    int deleteUserRoleByCode(@Param("userId") Long userId, @Param("roleCode") String roleCode);
 }

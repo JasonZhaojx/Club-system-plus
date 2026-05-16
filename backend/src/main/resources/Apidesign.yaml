@@ -170,12 +170,11 @@ paths:
               schema:
                 $ref: "#/components/schemas/ApiResponse"
 
-  /departments:
+  /organization/departments:
     get:
       tags:
         - Departments
       summary: List departments
-      security: []
       responses:
         "200":
           description: Department list
@@ -208,26 +207,7 @@ paths:
               schema:
                 $ref: "#/components/schemas/ApiResponse"
 
-  /departments/{departmentId}:
-    get:
-      tags:
-        - Departments
-      summary: Get department detail
-      security: []
-      parameters:
-        - $ref: "#/components/parameters/DepartmentId"
-      responses:
-        "200":
-          description: Department detail
-          content:
-            application/json:
-              schema:
-                allOf:
-                  - $ref: "#/components/schemas/ApiResponse"
-                  - type: object
-                    properties:
-                      data:
-                        $ref: "#/components/schemas/Department"
+  /organization/departments/{departmentId}:
     put:
       tags:
         - Departments
@@ -243,6 +223,181 @@ paths:
       responses:
         "200":
           description: Department updated
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/ApiResponse"
+
+  /organization/departments/{departmentId}/disable:
+    patch:
+      tags:
+        - Departments
+      summary: Disable department
+      parameters:
+        - $ref: "#/components/parameters/DepartmentId"
+      responses:
+        "200":
+          description: Department disabled
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/ApiResponse"
+
+  /organization/departments/{departmentId}/enable:
+    patch:
+      tags:
+        - Departments
+      summary: Enable department
+      parameters:
+        - $ref: "#/components/parameters/DepartmentId"
+      responses:
+        "200":
+          description: Department enabled
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/ApiResponse"
+
+  /organization/members:
+    get:
+      tags:
+        - Departments
+      summary: List members by organization scope
+      parameters:
+        - name: departmentId
+          in: query
+          required: false
+          schema:
+            type: integer
+            format: int64
+      responses:
+        "200":
+          description: Member list
+          content:
+            application/json:
+              schema:
+                allOf:
+                  - $ref: "#/components/schemas/ApiResponse"
+                  - type: object
+                    properties:
+                      data:
+                        type: array
+                        items:
+                          $ref: "#/components/schemas/ClubMember"
+    post:
+      tags:
+        - Departments
+      summary: Add or move member to department
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              $ref: "#/components/schemas/AssignMemberDepartmentRequest"
+      responses:
+        "200":
+          description: Member assigned
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/ApiResponse"
+
+  /organization/users:
+    get:
+      tags:
+        - Departments
+      summary: List all registered users with pagination
+      parameters:
+        - name: keyword
+          in: query
+          required: false
+          schema:
+            type: string
+        - $ref: "#/components/parameters/Page"
+        - $ref: "#/components/parameters/Size"
+      responses:
+        "200":
+          description: User page
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/ApiResponse"
+
+  /organization/members/status:
+    patch:
+      tags:
+        - Departments
+      summary: Update member status
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              $ref: "#/components/schemas/UpdateMemberStatusRequest"
+      responses:
+        "200":
+          description: Member status updated
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/ApiResponse"
+
+  /organization/leaders:
+    get:
+      tags:
+        - Departments
+      summary: List department leaders by organization scope
+      parameters:
+        - name: departmentId
+          in: query
+          required: false
+          schema:
+            type: integer
+            format: int64
+      responses:
+        "200":
+          description: Department leader list
+          content:
+            application/json:
+              schema:
+                allOf:
+                  - $ref: "#/components/schemas/ApiResponse"
+                  - type: object
+                    properties:
+                      data:
+                        type: array
+                        items:
+                          $ref: "#/components/schemas/DepartmentLeader"
+    post:
+      tags:
+        - Departments
+      summary: Appoint department leader
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              $ref: "#/components/schemas/AssignDepartmentLeaderRequest"
+      responses:
+        "200":
+          description: Department leader appointed
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/ApiResponse"
+    delete:
+      tags:
+        - Departments
+      summary: Remove department leader
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              $ref: "#/components/schemas/AssignDepartmentLeaderRequest"
+      responses:
+        "200":
+          description: Department leader removed
           content:
             application/json:
               schema:
@@ -922,13 +1077,11 @@ components:
           type: string
         description:
           type: string
-        leaderIds:
-          type: array
-          items:
-            type: integer
-            format: int64
-        memberCount:
-          type: integer
+        status:
+          type: string
+          enum:
+            - ACTIVE
+            - DISABLED
 
     DepartmentRequest:
       type: object
@@ -937,14 +1090,96 @@ components:
       properties:
         name:
           type: string
-          maxLength: 100
+          maxLength: 80
         description:
           type: string
-        leaderIds:
-          type: array
-          items:
-            type: integer
-            format: int64
+
+    AssignMemberDepartmentRequest:
+      type: object
+      required:
+        - userId
+        - departmentId
+      properties:
+        userId:
+          type: integer
+          format: int64
+        departmentId:
+          type: integer
+          format: int64
+
+    UpdateMemberStatusRequest:
+      type: object
+      required:
+        - userId
+        - status
+      properties:
+        userId:
+          type: integer
+          format: int64
+        status:
+          $ref: "#/components/schemas/MemberStatus"
+
+    AssignDepartmentLeaderRequest:
+      type: object
+      required:
+        - userId
+        - departmentId
+      properties:
+        userId:
+          type: integer
+          format: int64
+        departmentId:
+          type: integer
+          format: int64
+
+    ClubMember:
+      type: object
+      properties:
+        userId:
+          type: integer
+          format: int64
+        username:
+          type: string
+        nickname:
+          type: string
+        departmentId:
+          type: integer
+          format: int64
+        departmentName:
+          type: string
+        joinedAt:
+          type: string
+          format: date-time
+        status:
+          $ref: "#/components/schemas/MemberStatus"
+        departmentLeader:
+          type: boolean
+
+    DepartmentLeader:
+      type: object
+      properties:
+        userId:
+          type: integer
+          format: int64
+        username:
+          type: string
+        nickname:
+          type: string
+        departmentId:
+          type: integer
+          format: int64
+        departmentName:
+          type: string
+        appointedAt:
+          type: string
+          format: date-time
+
+    MemberStatus:
+      type: string
+      enum:
+        - ACTIVE
+        - DISABLED
+        - REMOVED
 
     ActivityStatus:
       type: string

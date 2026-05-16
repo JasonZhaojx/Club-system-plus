@@ -31,4 +31,12 @@
         from role
         where code = #{roleCode}
     </insert>
+
+    <delete id="deleteUserRoleByCode">
+        delete ur
+        from user_role ur
+        inner join role r on r.id = ur.role_id
+        where ur.user_id = #{userId}
+          and r.code = #{roleCode}
+    </delete>
 </mapper>

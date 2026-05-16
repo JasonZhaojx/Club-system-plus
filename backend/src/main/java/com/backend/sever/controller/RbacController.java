@@ -25,7 +25,7 @@ public class RbacController {
     }
 
     @GetMapping("/roles")
-    @PreAuthorize("hasAuthority('system:maintain')")
+    @PreAuthorize("hasAnyAuthority('department:manage', 'system:maintain')")
     public Result<List<RoleVO>> listRoles() {
         return Result.success(rbacService.listRoles());
     }
@@ -37,7 +37,7 @@ public class RbacController {
     }
 
     @PostMapping("/users/roles")
-    @PreAuthorize("hasAuthority('system:maintain')")
+    @PreAuthorize("hasAnyAuthority('department:manage', 'system:maintain')")
     public Result<Void> assignUserRoles(@RequestBody AssignUserRoleDTO request) {
         rbacService.assignUserRoles(request);
         return Result.success();

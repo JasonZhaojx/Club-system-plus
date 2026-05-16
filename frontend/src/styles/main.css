@@ -293,6 +293,175 @@ button {
   margin: 24px 0;
 }
 
+.admin-page {
+  max-width: 1120px;
+}
+
+.admin-header {
+  align-items: center;
+  display: flex;
+  justify-content: space-between;
+  margin-bottom: 20px;
+}
+
+.admin-header p {
+  color: #6b7280;
+  margin: 6px 0 0;
+}
+
+.admin-tabs {
+  display: flex;
+  gap: 8px;
+  margin-bottom: 16px;
+}
+
+.admin-tabs button {
+  background: #fff;
+  border: 1px solid #d1d5db;
+  color: #374151;
+}
+
+.admin-tabs button.active {
+  background: #2563eb;
+  border-color: #2563eb;
+  color: #fff;
+}
+
+.admin-panel {
+  background: #fff;
+  border: 1px solid #e5e7eb;
+  border-radius: 8px;
+  display: grid;
+  gap: 16px;
+  padding: 20px;
+}
+
+.admin-stack {
+  display: grid;
+  gap: 16px;
+}
+
+.admin-toolbar {
+  align-items: center;
+  display: flex;
+  gap: 12px;
+  justify-content: space-between;
+}
+
+.admin-toolbar span {
+  color: #6b7280;
+}
+
+.admin-subtoolbar {
+  color: #6b7280;
+  font-size: 14px;
+}
+
+.admin-search {
+  display: flex;
+  gap: 8px;
+}
+
+.admin-search input {
+  border: 1px solid #d1d5db;
+  border-radius: 6px;
+  font: inherit;
+  min-width: 220px;
+  padding: 10px 12px;
+}
+
+.admin-toolbar select,
+.profile-form select,
+.profile-form textarea {
+  border: 1px solid #d1d5db;
+  border-radius: 6px;
+  font: inherit;
+  padding: 10px 12px;
+}
+
+.data-table-wrap {
+  overflow-x: auto;
+}
+
+.data-table {
+  border-collapse: collapse;
+  min-width: 760px;
+  width: 100%;
+}
+
+.data-table th,
+.data-table td {
+  border-bottom: 1px solid #e5e7eb;
+  padding: 14px 12px;
+  text-align: left;
+  vertical-align: middle;
+}
+
+.data-table th {
+  color: #6b7280;
+  font-size: 13px;
+  font-weight: 600;
+}
+
+.data-table td span {
+  color: #6b7280;
+  display: block;
+  font-size: 12px;
+  margin-top: 2px;
+}
+
+.table-actions {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 8px;
+}
+
+.danger-button {
+  background: #fef2f2;
+  color: #b91c1c;
+}
+
+.checkbox-row {
+  align-items: center;
+  display: flex !important;
+  gap: 8px !important;
+}
+
+.checkbox-row input {
+  width: auto;
+}
+
+.role-checks {
+  border: 1px solid #e5e7eb;
+  border-radius: 8px;
+  display: grid;
+  gap: 10px;
+  padding: 12px;
+}
+
+.role-checks > span {
+  color: #374151;
+  font-size: 14px;
+  font-weight: 600;
+}
+
+.pagination {
+  align-items: center;
+  display: flex;
+  gap: 12px;
+  justify-content: flex-end;
+}
+
+.pagination span {
+  color: #4b5563;
+  font-size: 14px;
+}
+
+.pagination button:disabled {
+  cursor: not-allowed;
+  opacity: 0.55;
+}
+
 .profile-page {
   max-width: 1040px;
 }

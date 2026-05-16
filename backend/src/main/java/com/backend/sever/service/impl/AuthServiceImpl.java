@@ -62,7 +62,7 @@ public class AuthServiceImpl implements AuthService {
         user.setEmail(StringUtils.hasText(request.getEmail()) ? request.getEmail().trim() : null);
         user.setStatus(UserStatus.NORMAL);
         userMapper.insert(user);
-        roleMapper.insertUserRoleByCode(user.getId(), "CLUB_MEMBER");
+        roleMapper.insertUserRoleByCode(user.getId(), "REGISTERED_USER");
         return buildToken(user);
     }
 

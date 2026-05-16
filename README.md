@@ -140,7 +140,8 @@ http://localhost:5173
 
 - 数据库初始化时创建固定账号 `root`，并绑定 `SYSTEM_MAINTAINER` 角色。
 - `root` 初始密码为 `Root@123456`，首次启动后建议立即修改密码。
-- 普通用户注册后默认绑定 `CLUB_MEMBER` 角色。
+- 普通用户注册后默认绑定 `REGISTERED_USER` 角色。
+- 管理员将用户加入部门后，系统会把用户从 `REGISTERED_USER` 升级为 `CLUB_MEMBER`。
 - 用户后续变成部门负责人、社长或系统维护者，必须由已有 `SYSTEM_MAINTAINER` 通过 RBAC 管理接口调整角色。
 - 后端判断权限不依赖用户 ID，而是依赖 `user_role -> role_permission` 查出的权限编码，例如 `system:maintain`、`dashboard:view`。
 
@@ -315,6 +316,39 @@ http://localhost:5173
 - 删除或停用部门。
 - 任命部门负责人。
 - 添加或移除任意部门成员。
+
+当前后端已提供组织管理接口：
+
+```text
+GET    /api/organization/departments
+POST   /api/organization/departments
+PUT    /api/organization/departments/{departmentId}
+PATCH  /api/organization/departments/{departmentId}/disable
+
+GET    /api/organization/members?departmentId=
+POST   /api/organization/members
+PATCH  /api/organization/members/status
+
+GET    /api/organization/leaders?departmentId=
+POST   /api/organization/leaders
+DELETE /api/organization/leaders
+```
+
+权限边界：
+
+- `department:manage` 或 `system:maintain`：可以创建、编辑、停用全部部门，任命和移除部门负责人。
+- `member:manage`：可以管理成员，但如果只是部门负责人，只能管理自己负责部门的成员。
+- `department:manage` 或 `system:maintain`：拥有全局成员管理范围。
+- 任命部门负责人时，系统会写入 `department_leader`，并绑定 `CLUB_MEMBER` 和 `DEPARTMENT_LEADER` 角色。
+- 移除用户最后一个部门负责人身份时，系统会撤销 `DEPARTMENT_LEADER` 角色。
+
+后台页面设计：
+
+- “成员管理”和“权限管理”合并为“成员与权限”工作区。
+- 每个成员行末尾提供“调整”按钮，用于修改成员部门、成员状态、负责人身份和角色。
+- 部门负责人进入后台后，只能看到和管理自己负责部门的成员。
+- 社长和系统维护者可以看到全部成员，并可以调整用户角色。
+- “部门管理”只对社长和系统维护者开放，用于创建、编辑、停用部门。
 
 ### 7. 活动编辑审核模块
 

@@ -1,0 +1,91 @@
+<?xml version="1.0" encoding="UTF-8"?>
+<!DOCTYPE mapper
+        PUBLIC "-//mybatis.org//DTD Mapper 3.0//EN"
+        "https://mybatis.org/dtd/mybatis-3-mapper.dtd">
+<mapper namespace="com.backend.sever.mapper.ClubMemberMapper">
+    <resultMap id="ClubMemberResultMap" type="com.backend.pojo.entity.ClubMember">
+        <id column="id" property="id"/>
+        <result column="user_id" property="userId"/>
+        <result column="department_id" property="departmentId"/>
+        <result column="joined_at" property="joinedAt"/>
+        <result column="status" property="status"/>
+        <result column="created_at" property="createdAt"/>
+        <result column="updated_at" property="updatedAt"/>
+    </resultMap>
+
+    <resultMap id="ClubMemberVOResultMap" type="com.backend.pojo.vo.ClubMemberVO">
+        <id column="user_id" property="userId"/>
+        <result column="username" property="username"/>
+        <result column="nickname" property="nickname"/>
+        <result column="department_id" property="departmentId"/>
+        <result column="department_name" property="departmentName"/>
+        <result column="joined_at" property="joinedAt"/>
+        <result column="status" property="status"/>
+        <result column="department_leader" property="departmentLeader"/>
+    </resultMap>
+
+    <select id="selectByUserId" resultMap="ClubMemberResultMap">
+        select id, user_id, department_id, joined_at, status, created_at, updated_at
+        from club_member
+        where user_id = #{userId}
+        limit 1
+    </select>
+
+    <select id="selectMemberVOByUserId" resultMap="ClubMemberVOResultMap">
+        select u.id as user_id,
+               u.username,
+               u.nickname,
+               d.id as department_id,
+               d.name as department_name,
+               cm.joined_at,
+               cm.status,
+               case when dl.id is null then false else true end as department_leader
+        from club_member cm
+        inner join app_user u on u.id = cm.user_id
+        inner join department d on d.id = cm.department_id
+        left join department_leader dl on dl.user_id = cm.user_id
+            and dl.department_id = cm.department_id
+        where cm.user_id = #{userId}
+        limit 1
+    </select>
+
+    <select id="selectMemberVOList" resultMap="ClubMemberVOResultMap">
+        select u.id as user_id,
+               u.username,
+               u.nickname,
+               d.id as department_id,
+               d.name as department_name,
+               cm.joined_at,
+               cm.status,
+               case when dl.id is null then false else true end as department_leader
+        from club_member cm
+        inner join app_user u on u.id = cm.user_id
+        inner join department d on d.id = cm.department_id
+        left join department_leader dl on dl.user_id = cm.user_id
+            and dl.department_id = cm.department_id
+        <where>
+            <if test="departmentId != null">
+                cm.department_id = #{departmentId}
+            </if>
+        </where>
+        order by u.id
+    </select>
+
+    <insert id="upsertMember">
+        insert into club_member (user_id, department_id, status)
+        values (#{userId}, #{departmentId}, #{status})
+        on duplicate key update
+            department_id = values(department_id),
+            status = values(status),
+            joined_at = case
+                when status = 'REMOVED' then current_timestamp
+                else joined_at
+            end
+    </insert>
+
+    <update id="updateStatus">
+        update club_member
+        set status = #{status}
+        where user_id = #{userId}
+    </update>
+</mapper>
