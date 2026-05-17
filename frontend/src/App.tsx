@@ -65,9 +65,10 @@ export default function App() {
   return (
     <main className={sidebarCollapsed ? 'page sidebar-collapsed' : 'page'}>
       <header className="topbar">
-        <div className="topbar-spacer" />
+        <NavLink className="brand-link" to="/">
+          Club System Plus
+        </NavLink>
         <div className="account-area">
-          <strong>Club System Plus</strong>
           {user ? (
             <>
               <NavLink className="nav-user" to="/profile">
@@ -99,8 +100,9 @@ export default function App() {
           <NavLink to="/departments">部门展示</NavLink>
           <NavLink to="/leaders">重要成员</NavLink>
           <NavLink to="/activities">活动</NavLink>
-          {user && <NavLink to="/profile">我的资料</NavLink>}
+          <NavLink to="/coupons">优惠券</NavLink>
           {user && <NavLink to="/my-activities">我的活动</NavLink>}
+          {user && <NavLink to="/my-coupons">我的券包</NavLink>}
           {canAccessAdmin(user) && <NavLink to="/admin">后台</NavLink>}
         </nav>
       </aside>

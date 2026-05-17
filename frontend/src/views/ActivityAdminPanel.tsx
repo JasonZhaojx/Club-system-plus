@@ -188,7 +188,6 @@ export default function ActivityAdminPanel({ user }: { user: UserProfile | null 
               <th>状态</th>
               <th>报名</th>
               <th>开始时间</th>
-              <th>限制</th>
               <th>操作</th>
             </tr>
           </thead>
@@ -202,7 +201,6 @@ export default function ActivityAdminPanel({ user }: { user: UserProfile | null 
                 <td>{statusNames[activity.status]}</td>
                 <td>{activity.registeredCount}/{activity.capacity}</td>
                 <td>{new Date(activity.startTime).toLocaleString()}</td>
-                <td>{activity.requiredRoleCode || '无限制'}</td>
                 <td>
                   <div className="table-actions">
                     {canUpdate && (
@@ -236,7 +234,7 @@ export default function ActivityAdminPanel({ user }: { user: UserProfile | null 
             ))}
             {!activities.length && (
               <tr>
-                <td colSpan={6}>暂无活动数据</td>
+                <td colSpan={5}>暂无活动数据</td>
               </tr>
             )}
           </tbody>

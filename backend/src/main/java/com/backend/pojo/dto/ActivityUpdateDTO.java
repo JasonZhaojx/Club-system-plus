@@ -9,6 +9,9 @@ import java.time.LocalDateTime;
 @Data
 @NoArgsConstructor
 @AllArgsConstructor
+/**
+ * used to the updated activity as dto
+ */
 public class ActivityUpdateDTO {
     private String title;
     private String summary;

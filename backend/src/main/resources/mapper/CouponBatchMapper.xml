@@ -1,0 +1,66 @@
+<?xml version="1.0" encoding="UTF-8"?>
+<!DOCTYPE mapper
+        PUBLIC "-//mybatis.org//DTD Mapper 3.0//EN"
+        "https://mybatis.org/dtd/mybatis-3-mapper.dtd">
+<mapper namespace="com.backend.sever.mapper.CouponBatchMapper">
+    <resultMap id="CouponBatchResultMap" type="com.backend.pojo.entity.CouponBatch">
+        <id column="id" property="id"/>
+        <result column="name" property="name"/>
+        <result column="description" property="description"/>
+        <result column="coupon_type" property="couponType"/>
+        <result column="benefit_text" property="benefitText"/>
+        <result column="stock" property="stock"/>
+        <result column="claimed_count" property="claimedCount"/>
+        <result column="claim_start_time" property="claimStartTime"/>
+        <result column="claim_end_time" property="claimEndTime"/>
+        <result column="expire_time" property="expireTime"/>
+        <result column="allowed_role_codes" property="allowedRoleCodes"/>
+        <result column="status" property="status"/>
+        <result column="creator_id" property="creatorId"/>
+        <result column="created_at" property="createdAt"/>
+        <result column="updated_at" property="updatedAt"/>
+    </resultMap>
+
+    <sql id="CouponBatchColumns">
+        id, name, description, coupon_type, benefit_text, stock, claimed_count,
+        claim_start_time, claim_end_time, expire_time, allowed_role_codes, status,
+        creator_id, created_at, updated_at
+    </sql>
+
+    <select id="selectBatchPage" parameterType="map" resultMap="CouponBatchResultMap">
+        select <include refid="CouponBatchColumns"/>
+        from coupon_batch
+        <where>
+            <if test="keyword != null and keyword != ''">
+                and (name like concat('%', #{keyword}, '%') or description like concat('%', #{keyword}, '%'))
+            </if>
+            <if test="status != null">
+                and status = #{status}
+            </if>
+        </where>
+        order by created_at desc, id desc
+        limit #{size}
+        offset #{offset}
+    </select>
+
+    <select id="countBatches" parameterType="map" resultType="long">
+        select count(1)
+        from coupon_batch
+        <where>
+            <if test="keyword != null and keyword != ''">
+                and (name like concat('%', #{keyword}, '%') or description like concat('%', #{keyword}, '%'))
+            </if>
+            <if test="status != null">
+                and status = #{status}
+            </if>
+        </where>
+    </select>
+
+    <update id="incrementClaimedCount" parameterType="map">
+        update coupon_batch
+        set claimed_count = claimed_count + 1
+        where id = #{id}
+          and status = 'ACTIVE'
+          and claimed_count &lt; stock
+    </update>
+</mapper>

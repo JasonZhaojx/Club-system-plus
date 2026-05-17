@@ -1,0 +1,68 @@
+<?xml version="1.0" encoding="UTF-8"?>
+<!DOCTYPE mapper
+        PUBLIC "-//mybatis.org//DTD Mapper 3.0//EN"
+        "https://mybatis.org/dtd/mybatis-3-mapper.dtd">
+<mapper namespace="com.backend.sever.mapper.UserCouponMapper">
+    <resultMap id="UserCouponResultMap" type="com.backend.pojo.entity.UserCoupon">
+        <id column="id" property="id"/>
+        <result column="batch_id" property="batchId"/>
+        <result column="user_id" property="userId"/>
+        <result column="status" property="status"/>
+        <result column="claimed_at" property="claimedAt"/>
+        <result column="used_at" property="usedAt"/>
+        <result column="created_at" property="createdAt"/>
+        <result column="updated_at" property="updatedAt"/>
+    </resultMap>
+
+    <select id="selectByBatchAndUser" parameterType="map" resultMap="UserCouponResultMap">
+        select id, batch_id, user_id, status, claimed_at, used_at, created_at, updated_at
+        from user_coupon
+        where batch_id = #{batchId}
+          and user_id = #{userId}
+        limit 1
+    </select>
+
+    <select id="selectUserCoupons" parameterType="map" resultType="com.backend.pojo.vo.UserCouponVO">
+        select uc.id,
+               uc.batch_id as batchId,
+               cb.name as batchName,
+               cb.description,
+               cb.coupon_type as couponType,
+               cb.benefit_text as benefitText,
+               uc.status,
+               uc.claimed_at as claimedAt,
+               uc.used_at as usedAt,
+               cb.expire_time as expireTime
+        from user_coupon uc
+        inner join coupon_batch cb on cb.id = uc.batch_id
+        where uc.user_id = #{userId}
+        order by uc.claimed_at desc, uc.id desc
+    </select>
+
+    <select id="selectUserCouponDetail" parameterType="map" resultType="com.backend.pojo.vo.UserCouponVO">
+        select uc.id,
+               uc.batch_id as batchId,
+               cb.name as batchName,
+               cb.description,
+               cb.coupon_type as couponType,
+               cb.benefit_text as benefitText,
+               uc.status,
+               uc.claimed_at as claimedAt,
+               uc.used_at as usedAt,
+               cb.expire_time as expireTime
+        from user_coupon uc
+        inner join coupon_batch cb on cb.id = uc.batch_id
+        where uc.id = #{id}
+          and uc.user_id = #{userId}
+        limit 1
+    </select>
+
+    <update id="updateStatus" parameterType="map">
+        update user_coupon
+        set status = #{status},
+            used_at = case when #{status} = 'USED' then current_timestamp else used_at end
+        where id = #{id}
+          and user_id = #{userId}
+          and status = 'UNUSED'
+    </update>
+</mapper>

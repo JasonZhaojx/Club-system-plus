@@ -22,8 +22,9 @@ import { assignUserRoles, listRoles, type Role } from '@/api/modules/rbac'
 import { hasPermission } from '@/auth'
 import { getErrorMessage, showToast } from '@/toast'
 import ActivityAdminPanel from './ActivityAdminPanel'
+import CouponAdminPanel from './CouponAdminPanel'
 
-type AdminTab = 'members' | 'departments' | 'activities'
+type AdminTab = 'members' | 'departments' | 'activities' | 'coupons'
 
 const memberStatusNames: Record<MemberStatus, string> = {
   ACTIVE: '正常',
@@ -72,6 +73,7 @@ export default function AdminView() {
     hasPermission(user, 'activity:create') ||
     hasPermission(user, 'activity:update') ||
     hasPermission(user, 'activity:review')
+  const canManageCoupons = hasPermission(user, 'coupon:manage') || hasPermission(user, 'system:maintain')
 
   const visibleDepartments = useMemo(() => {
     if (canManageDepartments) {
@@ -342,6 +344,15 @@ export default function AdminView() {
             活动管理
           </button>
         )}
+        {canManageCoupons && (
+          <button
+            className={activeTab === 'coupons' ? 'active' : ''}
+            onClick={() => setActiveTab('coupons')}
+            type="button"
+          >
+            优惠券管理
+          </button>
+        )}
       </div>
 
       {activeTab === 'members' && canManageMembers && (
@@ -550,6 +561,7 @@ export default function AdminView() {
       )}
 
       {activeTab === 'activities' && canManageActivities && <ActivityAdminPanel user={user} />}
+      {activeTab === 'coupons' && canManageCoupons && <CouponAdminPanel />}
 
       {memberModalOpen && (
         <div className="modal-backdrop" role="presentation">

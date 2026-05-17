@@ -149,11 +149,7 @@ export default function ActivityDetailView() {
         <aside className="activity-apply-panel">
           <span>报名状态</span>
           <strong>{registered ? '已报名' : remaining > 0 ? '开放报名' : '名额已满'}</strong>
-          <p>
-            {activity.requiredRoleCode
-              ? `仅限 ${roleNames[activity.requiredRoleCode] || activity.requiredRoleCode} 报名`
-              : '所有登录用户均可报名'}
-          </p>
+          <p>{roleAllowed ? '你可以报名参加该活动。' : '当前账号暂不可报名该活动。'}</p>
           <div className="activity-capacity-bar">
             <span style={{ width: `${Math.min((activity.registeredCount / activity.capacity) * 100, 100)}%` }} />
           </div>

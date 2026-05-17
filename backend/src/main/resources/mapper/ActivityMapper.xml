@@ -31,7 +31,7 @@
         created_at, updated_at
     </sql>
 
-    <select id="selectActivityPage" resultMap="ActivityResultMap">
+    <select id="selectActivityPage" parameterType="map" resultMap="ActivityResultMap">
         select <include refid="ActivityColumns"/>
         from activity
         <where>
@@ -51,15 +51,15 @@
             </if>
         </where>
         <choose>
-            <when test="sort == 'latest'">order by published_at desc, id desc</when>
-            <when test="sort == 'capacity'">order by (capacity - registered_count) desc, id desc</when>
+            <when test='sort == "latest"'>order by published_at desc, id desc</when>
+            <when test='sort == "capacity"'>order by (capacity - registered_count) desc, id desc</when>
             <otherwise>order by start_time asc, id desc</otherwise>
         </choose>
         limit #{size}
         offset #{offset}
     </select>
 
-    <select id="countActivities" resultType="long">
+    <select id="countActivities" parameterType="map" resultType="long">
         select count(1)
         from activity
         <where>
@@ -96,7 +96,7 @@
         where id = #{id}
     </update>
 
-    <update id="updateStatus">
+    <update id="updateStatus" parameterType="map">
         update activity
         set status = #{status},
             reviewer_id = #{reviewerId},
@@ -104,7 +104,7 @@
         where id = #{id}
     </update>
 
-    <update id="incrementRegistrationCount">
+    <update id="incrementRegistrationCount" parameterType="map">
         update activity
         set registered_count = registered_count + 1
         where id = #{id}
@@ -112,7 +112,7 @@
           and registered_count &lt; capacity
     </update>
 
-    <update id="decrementRegistrationCount">
+    <update id="decrementRegistrationCount" parameterType="map">
         update activity
         set registered_count = case when registered_count > 0 then registered_count - 1 else 0 end
         where id = #{id}

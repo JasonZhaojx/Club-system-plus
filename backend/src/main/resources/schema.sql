@@ -293,3 +293,84 @@ set title = 'Community Day 社团开放日',
     image_url = 'https://images.unsplash.com/photo-1521737604893-d14cc237f11d?auto=format&fit=crop&w=1200&q=80',
     location = '学生活动中心'
 where id = 4;
+
+create table if not exists coupon_batch (
+    id bigint primary key auto_increment,
+    name varchar(120) not null,
+    description varchar(255) null,
+    coupon_type varchar(50) not null,
+    benefit_text varchar(120) not null,
+    stock int not null,
+    claimed_count int not null default 0,
+    claim_start_time datetime not null,
+    claim_end_time datetime not null,
+    expire_time datetime not null,
+    allowed_role_codes varchar(255) null,
+    status varchar(30) not null default 'ACTIVE',
+    creator_id bigint null,
+    created_at datetime not null default current_timestamp,
+    updated_at datetime not null default current_timestamp on update current_timestamp,
+    key idx_coupon_batch_status (status),
+    key idx_coupon_batch_claim_time (claim_start_time, claim_end_time)
+);
+
+create table if not exists user_coupon (
+    id bigint primary key auto_increment,
+    batch_id bigint not null,
+    user_id bigint not null,
+    status varchar(20) not null default 'UNUSED',
+    claimed_at datetime not null default current_timestamp,
+    used_at datetime null,
+    created_at datetime not null default current_timestamp,
+    updated_at datetime not null default current_timestamp on update current_timestamp,
+    unique key uk_user_coupon_batch_user (batch_id, user_id),
+    key idx_user_coupon_user_id (user_id),
+    key idx_user_coupon_status (status)
+);
+
+create table if not exists coupon_redemption (
+    id bigint primary key auto_increment,
+    user_coupon_id bigint not null,
+    batch_id bigint not null,
+    user_id bigint not null,
+    scene varchar(80) null,
+    note varchar(255) null,
+    redeemed_at datetime not null default current_timestamp,
+    created_at datetime not null default current_timestamp,
+    key idx_coupon_redemption_user_id (user_id),
+    key idx_coupon_redemption_batch_id (batch_id)
+);
+
+create table if not exists coupon_claim_task (
+    id bigint primary key auto_increment,
+    batch_id bigint not null,
+    user_id bigint not null,
+    status varchar(20) not null default 'PENDING',
+    retry_count int not null default 0,
+    error_message varchar(500) null,
+    created_at datetime not null default current_timestamp,
+    updated_at datetime not null default current_timestamp on update current_timestamp,
+    unique key uk_coupon_claim_task_user (batch_id, user_id),
+    key idx_coupon_claim_task_status (status, retry_count, updated_at)
+);
+
+alter table coupon_batch convert to character set utf8mb4 collate utf8mb4_unicode_ci;
+alter table user_coupon convert to character set utf8mb4 collate utf8mb4_unicode_ci;
+alter table coupon_redemption convert to character set utf8mb4 collate utf8mb4_unicode_ci;
+alter table coupon_claim_task convert to character set utf8mb4 collate utf8mb4_unicode_ci;
+insert ignore into permission (code, name, description) values
+('coupon:manage', '管理优惠券', '创建和管理优惠券批次');
+
+insert ignore into role_permission (role_id, permission_id)
+select r.id, p.id
+from role r
+inner join permission p on p.code = 'coupon:manage'
+where r.code in ('DEPARTMENT_LEADER', 'PRESIDENT', 'SYSTEM_MAINTAINER');
+
+insert ignore into coupon_batch (
+    id, name, description, coupon_type, benefit_text, stock, claimed_count,
+    claim_start_time, claim_end_time, expire_time, allowed_role_codes, status, creator_id
+) values
+(1, '新成员活动权益券', '可用于线下活动物料、报名费用或门票权益兑换。', 'BENEFIT', '活动物料或门票权益', 100, 0,
+ '2026-05-01 00:00:00', '2026-12-31 23:59:59', '2027-01-31 23:59:59',
+ 'REGISTERED_USER,CLUB_MEMBER,DEPARTMENT_LEADER,PRESIDENT', 'ACTIVE', 1);

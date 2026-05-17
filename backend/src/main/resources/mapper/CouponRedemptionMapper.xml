@@ -1,0 +1,19 @@
+<?xml version="1.0" encoding="UTF-8"?>
+<!DOCTYPE mapper
+        PUBLIC "-//mybatis.org//DTD Mapper 3.0//EN"
+        "https://mybatis.org/dtd/mybatis-3-mapper.dtd">
+<mapper namespace="com.backend.sever.mapper.CouponRedemptionMapper">
+    <select id="selectUserRedemptions" parameterType="map" resultType="com.backend.pojo.vo.CouponRedemptionVO">
+        select cr.id,
+               cr.user_coupon_id as userCouponId,
+               cr.batch_id as batchId,
+               cb.name as batchName,
+               cr.scene,
+               cr.note,
+               cr.redeemed_at as redeemedAt
+        from coupon_redemption cr
+        inner join coupon_batch cb on cb.id = cr.batch_id
+        where cr.user_id = #{userId}
+        order by cr.redeemed_at desc, cr.id desc
+    </select>
+</mapper>

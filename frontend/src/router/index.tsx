@@ -5,11 +5,13 @@ import AboutView from '@/views/AboutView'
 import ActivityDetailView from '@/views/ActivityDetailView'
 import ActivitiesView from '@/views/ActivitiesView'
 import AdminView from '@/views/AdminView'
+import CouponsView from '@/views/CouponsView'
 import DepartmentsView from '@/views/DepartmentsView'
 import HomeView from '@/views/HomeView'
 import LeadersView from '@/views/LeadersView'
 import LoginView from '@/views/LoginView'
 import MyActivitiesView from '@/views/MyActivitiesView'
+import MyCouponsView from '@/views/MyCouponsView'
 import ProfileView from '@/views/ProfileView'
 import { getCurrentUser, type UserProfile } from '@/api/modules/auth'
 import { canAccessAdmin, getAccessToken, saveUser } from '@/auth'
@@ -88,6 +90,14 @@ const router = createBrowserRouter([
         element: <ActivitiesView />,
       },
       {
+        path: 'coupons',
+        element: (
+          <RequireLogin redirect="/coupons">
+            <CouponsView />
+          </RequireLogin>
+        ),
+      },
+      {
         path: 'activities/:activityId',
         element: <ActivityDetailView />,
       },
@@ -116,6 +126,14 @@ const router = createBrowserRouter([
         element: (
           <RequireLogin redirect="/my-activities">
             <MyActivitiesView />
+          </RequireLogin>
+        ),
+      },
+      {
+        path: 'my-coupons',
+        element: (
+          <RequireLogin redirect="/my-coupons">
+            <MyCouponsView />
           </RequireLogin>
         ),
       },

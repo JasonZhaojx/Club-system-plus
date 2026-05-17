@@ -9,6 +9,9 @@ import java.time.LocalDateTime;
 @Data
 @NoArgsConstructor
 @AllArgsConstructor
+/**
+ * used to get the created activity
+ */
 public class ActivityCreateDTO {
     private String title;
     private String summary;
