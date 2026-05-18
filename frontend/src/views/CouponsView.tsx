@@ -1,4 +1,4 @@
-import { FormEvent, useEffect, useState } from 'react'
+import { FormEvent, useEffect, useRef, useState } from 'react'
 import { claimCoupon, listCouponBatches, listMyCoupons, type CouponBatch } from '@/api/modules/coupon'
 import { getAccessToken } from '@/auth'
 import { getErrorMessage, showToast } from '@/toast'
@@ -7,27 +7,60 @@ function formatDate(value: string) {
   return new Date(value).toLocaleDateString('zh-CN')
 }
 
+const batchSize = 8
+
 export default function CouponsView() {
   const [batches, setBatches] = useState<CouponBatch[]>([])
   const [claimedBatchIds, setClaimedBatchIds] = useState<Set<number>>(new Set())
   const [keyword, setKeyword] = useState('')
+  const [queryKeyword, setQueryKeyword] = useState('')
   const [loading, setLoading] = useState(true)
   const [claimingId, setClaimingId] = useState<number | null>(null)
   const [error, setError] = useState('')
+  const [page, setPage] = useState(1)
+  const [total, setTotal] = useState(0)
+  const loadMoreRef = useRef<HTMLDivElement | null>(null)
+
+  const hasMore = batches.length < total
 
   useEffect(() => {
     void refresh()
   }, [])
 
+  useEffect(() => {
+    const target = loadMoreRef.current
+    if (!target || !hasMore || loading) {
+      return
+    }
+
+    const observer = new IntersectionObserver(
+      ([entry]) => {
+        if (entry.isIntersecting) {
+          void loadBatches(page + 1, false)
+        }
+      },
+      { rootMargin: '260px 0px' },
+    )
+
+    observer.observe(target)
+    return () => observer.disconnect()
+  }, [hasMore, loading, page, queryKeyword])
+
   async function refresh() {
+    await loadBatches(1, true)
+  }
+
+  async function loadBatches(nextPage: number, replace: boolean, submittedKeyword = queryKeyword) {
     setLoading(true)
     setError('')
     try {
       const [result, myCoupons] = await Promise.all([
-        listCouponBatches({ page: 1, size: 30, keyword: keyword.trim() || undefined }),
+        listCouponBatches({ page: nextPage, size: batchSize, keyword: submittedKeyword || undefined }),
         getAccessToken() ? listMyCoupons().catch(() => []) : Promise.resolve([]),
       ])
-      setBatches(result.records)
+      setBatches((current) => (replace ? result.records : [...current, ...result.records]))
+      setPage(result.page)
+      setTotal(result.total)
       setClaimedBatchIds(new Set(myCoupons.map((coupon) => coupon.batchId)))
     } catch (err) {
       setError(getErrorMessage(err, '优惠券加载失败'))
@@ -38,7 +71,9 @@ export default function CouponsView() {
 
   async function handleSearch(event: FormEvent) {
     event.preventDefault()
-    await refresh()
+    const submittedKeyword = keyword.trim()
+    setQueryKeyword(submittedKeyword)
+    await loadBatches(1, true, submittedKeyword)
   }
 
   async function handleClaim(batch: CouponBatch) {
@@ -122,6 +157,16 @@ export default function CouponsView() {
             </button>
           </section>
         ))}
+      </div>
+
+      <div className="load-more-wrap" ref={loadMoreRef}>
+        {loading
+          ? <span>正在加载优惠券...</span>
+          : hasMore
+            ? <span>继续向下浏览，自动加载更多优惠券</span>
+            : batches.length
+              ? <span>已展示全部优惠券</span>
+              : null}
       </div>
     </section>
   )

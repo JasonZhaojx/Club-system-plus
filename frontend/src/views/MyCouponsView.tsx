@@ -1,4 +1,4 @@
-import { useEffect, useMemo, useState } from 'react'
+import { useEffect, useMemo, useState, type UIEvent } from 'react'
 import {
   listMyCouponRedemptions,
   listMyCoupons,
@@ -14,6 +14,9 @@ const statusNames: Record<UserCouponStatus, string> = {
   USED: '已使用',
   EXPIRED: '已过期',
 }
+
+const couponBatchSize = 4
+const redemptionBatchSize = 5
 
 function formatDate(value: string) {
   return new Date(value).toLocaleString('zh-CN', {
@@ -31,15 +34,32 @@ export default function MyCouponsView() {
   const [loading, setLoading] = useState(true)
   const [error, setError] = useState('')
   const [usingId, setUsingId] = useState<number | null>(null)
+  const [visibleCoupons, setVisibleCoupons] = useState(couponBatchSize)
+  const [visibleRedemptions, setVisibleRedemptions] = useState(redemptionBatchSize)
 
   const unusedCoupons = useMemo(
     () => coupons.filter((coupon) => coupon.status === 'UNUSED'),
     [coupons],
   )
+  const couponRenderLimit = Math.min(coupons.length, visibleCoupons + (visibleCoupons < coupons.length ? 1 : 0))
+  const redemptionRenderLimit = Math.min(
+    redemptions.length,
+    visibleRedemptions + (visibleRedemptions < redemptions.length ? 1 : 0),
+  )
+  const displayedCoupons = coupons.slice(0, couponRenderLimit)
+  const displayedRedemptions = redemptions.slice(0, redemptionRenderLimit)
 
   useEffect(() => {
     void refresh()
   }, [])
+
+  useEffect(() => {
+    setVisibleCoupons(couponBatchSize)
+  }, [coupons])
+
+  useEffect(() => {
+    setVisibleRedemptions(redemptionBatchSize)
+  }, [redemptions])
 
   async function refresh() {
     setLoading(true)
@@ -68,6 +88,22 @@ export default function MyCouponsView() {
     }
   }
 
+  function handleCouponScroll(event: UIEvent<HTMLDivElement>) {
+    const target = event.currentTarget
+    const nearEnd = target.scrollLeft + target.clientWidth >= target.scrollWidth - 80
+    if (nearEnd) {
+      setVisibleCoupons((current) => Math.min(current + couponBatchSize, coupons.length))
+    }
+  }
+
+  function handleRedemptionScroll(event: UIEvent<HTMLDivElement>) {
+    const target = event.currentTarget
+    const nearEnd = target.scrollTop + target.clientHeight >= target.scrollHeight - 40
+    if (nearEnd) {
+      setVisibleRedemptions((current) => Math.min(current + redemptionBatchSize, redemptions.length))
+    }
+  }
+
   return (
     <section className="content public-page">
       <div className="section-head">
@@ -82,8 +118,8 @@ export default function MyCouponsView() {
       {!loading && error && <div className="empty-state">{error}</div>}
       {!loading && !error && !coupons.length && <div className="empty-state">暂无优惠券</div>}
 
-      <div className="coupon-grid">
-        {coupons.map((coupon) => (
+      <div className="wallet-coupon-strip" onScroll={handleCouponScroll}>
+        {displayedCoupons.map((coupon) => (
           <section className="coupon-card" key={coupon.id}>
             <div>
               <span>{coupon.couponType}</span>
@@ -121,7 +157,7 @@ export default function MyCouponsView() {
           <div className="section-heading">
             <h2>核销记录</h2>
           </div>
-          <div className="data-table-wrap">
+          <div className="data-table-wrap redemption-scroll" onScroll={handleRedemptionScroll}>
             <table className="data-table">
               <thead>
                 <tr>
@@ -132,7 +168,7 @@ export default function MyCouponsView() {
                 </tr>
               </thead>
               <tbody>
-                {redemptions.map((record) => (
+                {displayedRedemptions.map((record) => (
                   <tr key={record.id}>
                     <td>{record.batchName}</td>
                     <td>{record.scene || '-'}</td>

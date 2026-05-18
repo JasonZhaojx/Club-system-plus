@@ -36,18 +36,18 @@ public class ActivityServiceImpl implements com.backend.sever.service.ActivitySe
 
     @Override
     public PageVO<ActivityVO> listPublicActivities(String keyword, String category, String sort, int page, int size) {
-        return listActivities(keyword, category, ActivityStatus.PUBLISHED, sort, page, size);
+        return listActivities(keyword, category, null, true, sort, page, size);
     }
 
     @Override
     public PageVO<ActivityVO> listManageActivities(String keyword, String category, ActivityStatus status, String sort, int page, int size) {
-        return listActivities(keyword, category, status, sort, page, size);
+        return listActivities(keyword, category, status, false, sort, page, size);
     }
 
     @Override
     public ActivityVO getPublicActivity(Long activityId) {
         Activity activity = requireActivity(activityId);
-        if (activity.getStatus() != ActivityStatus.PUBLISHED) {
+        if (activity.getStatus() != ActivityStatus.PUBLISHED && activity.getStatus() != ActivityStatus.ENDED) {
             throw new BusinessException(ErrorCode.NOT_FOUND, "活动不存在或未发布");
         }
         return ActivityVO.from(activity);
@@ -181,7 +181,7 @@ public class ActivityServiceImpl implements com.backend.sever.service.ActivitySe
         return activityRegistrationMapper.selectUserRegistrations(principal.userId());
     }
 
-    private PageVO<ActivityVO> listActivities(String keyword, String category, ActivityStatus status, String sort, int page, int size) {
+    private PageVO<ActivityVO> listActivities(String keyword, String category, ActivityStatus status, boolean publicOnly, String sort, int page, int size) {
         int normalizedPage = Math.max(page, 1);
         int normalizedSize = Math.min(Math.max(size, 1), 50);
         int offset = (normalizedPage - 1) * normalizedSize;
@@ -189,11 +189,11 @@ public class ActivityServiceImpl implements com.backend.sever.service.ActivitySe
         String normalizedCategory = StringUtils.hasText(category) ? category.trim() : null;
         String normalizedSort = StringUtils.hasText(sort) ? sort.trim() : "upcoming";
         return new PageVO<>(
-                activityMapper.selectActivityPage(normalizedKeyword, normalizedCategory, status, normalizedSort, offset, normalizedSize)
+                activityMapper.selectActivityPage(normalizedKeyword, normalizedCategory, status, publicOnly, normalizedSort, offset, normalizedSize)
                         .stream()
                         .map(ActivityVO::from)
                         .toList(),
-                activityMapper.countActivities(normalizedKeyword, normalizedCategory, status),
+                activityMapper.countActivities(normalizedKeyword, normalizedCategory, status, publicOnly),
                 normalizedPage,
                 normalizedSize
         );

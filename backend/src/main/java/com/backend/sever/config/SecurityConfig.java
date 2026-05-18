@@ -26,7 +26,11 @@ import java.nio.charset.StandardCharsets;
 @EnableMethodSecurity
 @EnableConfigurationProperties(JwtProperties.class)
 public class SecurityConfig {
-    private final ObjectMapper objectMapper = new ObjectMapper();
+    private final ObjectMapper objectMapper;
+
+    public SecurityConfig(ObjectMapper objectMapper) {
+        this.objectMapper = objectMapper;
+    }
 
     @Bean
     public SecurityFilterChain securityFilterChain(

@@ -49,10 +49,14 @@
             <if test="status != null">
                 and status = #{status}
             </if>
+            <if test="publicOnly">
+                and status in ('PUBLISHED', 'ENDED')
+            </if>
         </where>
         <choose>
-            <when test='sort == "latest"'>order by published_at desc, id desc</when>
-            <when test='sort == "capacity"'>order by (capacity - registered_count) desc, id desc</when>
+            <when test="sort == 'latest'">order by published_at desc, id desc</when>
+            <when test="sort == 'capacity'">order by (capacity - registered_count) desc, id desc</when>
+            <when test="publicOnly">order by case when status = 'ENDED' or end_time &lt;= current_timestamp then 1 else 0 end, start_time asc, id desc</when>
             <otherwise>order by start_time asc, id desc</otherwise>
         </choose>
         limit #{size}
@@ -76,6 +80,9 @@
             </if>
             <if test="status != null">
                 and status = #{status}
+            </if>
+            <if test="publicOnly">
+                and status in ('PUBLISHED', 'ENDED')
             </if>
         </where>
     </select>

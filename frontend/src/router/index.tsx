@@ -6,6 +6,7 @@ import ActivityDetailView from '@/views/ActivityDetailView'
 import ActivitiesView from '@/views/ActivitiesView'
 import AdminView from '@/views/AdminView'
 import CouponsView from '@/views/CouponsView'
+import DashboardView from '@/views/DashboardView'
 import DepartmentsView from '@/views/DepartmentsView'
 import HomeView from '@/views/HomeView'
 import LeadersView from '@/views/LeadersView'
@@ -14,9 +15,17 @@ import MyActivitiesView from '@/views/MyActivitiesView'
 import MyCouponsView from '@/views/MyCouponsView'
 import ProfileView from '@/views/ProfileView'
 import { getCurrentUser, type UserProfile } from '@/api/modules/auth'
-import { canAccessAdmin, getAccessToken, saveUser } from '@/auth'
+import { canAccessAdmin, canAccessDashboard, getAccessToken, saveUser } from '@/auth'
 
-function RequireAuth({ children }: { children: ReactNode }) {
+function RequireAuth({
+  children,
+  redirect = '/admin',
+  authorize = canAccessAdmin,
+}: {
+  children: ReactNode
+  redirect?: string
+  authorize?: (user: UserProfile | null) => boolean
+}) {
   const token = getAccessToken()
   const [user, setUser] = useState<UserProfile | null>(null)
   const [loading, setLoading] = useState(Boolean(token))
@@ -34,7 +43,7 @@ function RequireAuth({ children }: { children: ReactNode }) {
         }
         saveUser(currentUser)
         setUser(currentUser)
-        setAuthorized(canAccessAdmin(currentUser))
+        setAuthorized(authorize(currentUser))
       })
       .catch(() => {
         if (active) {
@@ -49,10 +58,10 @@ function RequireAuth({ children }: { children: ReactNode }) {
     return () => {
       active = false
     }
-  }, [token])
+  }, [authorize, token])
 
   if (!token) {
-    return <Navigate to="/login?redirect=/admin" replace />
+    return <Navigate to={`/login?redirect=${encodeURIComponent(redirect)}`} replace />
   }
   if (loading) {
     return <section className="content">正在验证权限...</section>
@@ -140,8 +149,16 @@ const router = createBrowserRouter([
       {
         path: 'admin',
         element: (
-          <RequireAuth>
+          <RequireAuth redirect="/admin">
             <AdminView />
+          </RequireAuth>
+        ),
+      },
+      {
+        path: 'dashboard',
+        element: (
+          <RequireAuth authorize={canAccessDashboard} redirect="/dashboard">
+            <DashboardView />
           </RequireAuth>
         ),
       },

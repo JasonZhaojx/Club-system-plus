@@ -24,6 +24,10 @@ function formatDate(value: string) {
   })
 }
 
+function isActivityEnded(activity: Activity) {
+  return activity.status === 'ENDED' || Date.now() >= new Date(activity.endTime).getTime()
+}
+
 export default function ActivitiesView() {
   const [activities, setActivities] = useState<Activity[]>([])
   const [category, setCategory] = useState('')
@@ -118,20 +122,26 @@ export default function ActivitiesView() {
       </div>
 
       <div className="activity-grid">
-        {activities.map((activity) => (
-          <Link className="activity-card" key={activity.id} to={`/activities/${activity.id}`}>
-            <img alt={activity.title} src={activity.imageUrl || fallbackImage} />
-            <div>
-              <span>{formatDate(activity.startTime)} · {activity.categoryName}</span>
-              <h3>{activity.title}</h3>
-              <p>{activity.summary}</p>
-              <div className="activity-card-meta">
-                <strong>{activity.registeredCount}/{activity.capacity}</strong>
-                <span>{activity.location}</span>
+        {activities.map((activity) => {
+          const ended = isActivityEnded(activity)
+          return (
+            <Link className={`activity-card${ended ? ' activity-card-ended' : ''}`} key={activity.id} to={`/activities/${activity.id}`}>
+              <img alt={activity.title} src={activity.imageUrl || fallbackImage} />
+              <div>
+                <div className="activity-card-kicker">
+                  <span>{formatDate(activity.startTime)} · {activity.categoryName}</span>
+                  {ended && <strong>已结束</strong>}
+                </div>
+                <h3>{activity.title}</h3>
+                <p>{activity.summary}</p>
+                <div className="activity-card-meta">
+                  <strong>{ended ? '活动已结束' : `${activity.registeredCount}/${activity.capacity}`}</strong>
+                  <span>{activity.location}</span>
+                </div>
               </div>
-            </div>
-          </Link>
-        ))}
+            </Link>
+          )
+        })}
       </div>
 
       {!activities.length && !loading && (

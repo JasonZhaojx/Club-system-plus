@@ -1,0 +1,297 @@
+<?xml version="1.0" encoding="UTF-8"?>
+<!DOCTYPE mapper
+        PUBLIC "-//mybatis.org//DTD Mapper 3.0//EN"
+        "https://mybatis.org/dtd/mybatis-3-mapper.dtd">
+<mapper namespace="com.backend.sever.mapper.DashboardMapper">
+    <resultMap id="NameValueResultMap" type="com.backend.pojo.vo.DashboardNameValueVO">
+        <result column="name" property="name"/>
+        <result column="value" property="value"/>
+    </resultMap>
+
+    <resultMap id="ApiTrafficPointResultMap" type="com.backend.pojo.vo.ApiTrafficPointVO">
+        <result column="bucket" property="bucket"/>
+        <result column="total" property="total"/>
+        <result column="error_count" property="errorCount"/>
+        <result column="avg_duration_ms" property="avgDurationMs"/>
+    </resultMap>
+
+    <resultMap id="RankResultMap" type="com.backend.pojo.vo.DashboardRankVO">
+        <result column="name" property="name"/>
+        <result column="value" property="value"/>
+        <result column="detail" property="detail"/>
+        <result column="rate" property="rate"/>
+    </resultMap>
+
+    <resultMap id="ApiAccessLogResultMap" type="com.backend.pojo.vo.ApiAccessLogVO">
+        <id column="id" property="id"/>
+        <result column="method" property="method"/>
+        <result column="path" property="path"/>
+        <result column="status_code" property="statusCode"/>
+        <result column="duration_ms" property="durationMs"/>
+        <result column="user_id" property="userId"/>
+        <result column="username" property="username"/>
+        <result column="ip_address" property="ipAddress"/>
+        <result column="created_at" property="createdAt"/>
+    </resultMap>
+
+    <resultMap id="OperationLogResultMap" type="com.backend.pojo.vo.OperationLogVO">
+        <id column="id" property="id"/>
+        <result column="user_id" property="userId"/>
+        <result column="username" property="username"/>
+        <result column="method" property="method"/>
+        <result column="path" property="path"/>
+        <result column="action" property="action"/>
+        <result column="status_code" property="statusCode"/>
+        <result column="duration_ms" property="durationMs"/>
+        <result column="ip_address" property="ipAddress"/>
+        <result column="created_at" property="createdAt"/>
+    </resultMap>
+
+    <select id="countUsers" resultType="long">
+        select count(1) from app_user
+    </select>
+
+    <select id="countMembers" resultType="long">
+        select count(1) from club_member where status = 'ACTIVE'
+    </select>
+
+    <select id="countDepartments" resultType="long">
+        select count(1) from department
+    </select>
+
+    <select id="countActivities" resultType="long">
+        select count(1) from activity
+    </select>
+
+    <select id="countActivityRegistrations" resultType="long">
+        select count(1) from activity_registration
+    </select>
+
+    <select id="countCouponClaims" resultType="long">
+        select count(1) from user_coupon
+    </select>
+
+    <select id="selectActivityStatus" resultMap="NameValueResultMap">
+        select status as name, count(1) as value
+        from activity
+        group by status
+        order by value desc
+    </select>
+
+    <select id="selectMemberStatus" resultMap="NameValueResultMap">
+        select status as name, count(1) as value
+        from club_member
+        group by status
+        order by value desc
+    </select>
+
+    <select id="selectApiTraffic" resultMap="ApiTrafficPointResultMap">
+        select date_format(stat_minute, '%H:%i') as bucket,
+               total_count as total,
+               error_count,
+               avg_duration_ms
+        from api_access_minute_stat
+        where stat_minute >= date_sub(now(), interval #{minutes} minute)
+        order by stat_minute
+    </select>
+
+    <select id="selectHotApis" resultMap="RankResultMap">
+        select concat(method, ' ', path) as name,
+               sum(total_count) as value,
+               concat(round(sum(avg_duration_ms * total_count) / nullif(sum(total_count), 0)), ' ms avg') as detail,
+               null as rate
+        from api_path_hour_stat
+        where stat_hour >= date_sub(now(), interval #{hours} hour)
+        group by method, path
+        order by value desc
+        limit #{size}
+    </select>
+
+    <select id="selectSlowApis" resultMap="RankResultMap">
+        select concat(method, ' ', path) as name,
+               round(sum(avg_duration_ms * total_count) / nullif(sum(total_count), 0)) as value,
+               concat(sum(total_count), ' calls') as detail,
+               null as rate
+        from api_path_hour_stat
+        where stat_hour >= date_sub(now(), interval #{hours} hour)
+        group by method, path
+        having sum(total_count) >= 1
+        order by value desc
+        limit #{size}
+    </select>
+
+    <select id="selectErrorApis" resultMap="RankResultMap">
+        select concat(method, ' ', path) as name,
+               sum(error_count) as value,
+               concat('last ', max(max_status_code)) as detail,
+               null as rate
+        from api_path_hour_stat
+        where stat_hour >= date_sub(now(), interval #{hours} hour)
+          and error_count > 0
+        group by method, path
+        order by value desc
+        limit #{size}
+    </select>
+
+    <select id="selectActivityConversions" resultMap="RankResultMap">
+        select title as name,
+               greatest(registered_count, (
+                   select count(1)
+                   from activity_registration ar
+                   where ar.activity_id = activity.id
+                     and ar.status = 'REGISTERED'
+               )) as value,
+               cast(capacity as char) as detail,
+               case when capacity = 0 then 0 else round(greatest(registered_count, (
+                   select count(1)
+                   from activity_registration ar
+                   where ar.activity_id = activity.id
+                     and ar.status = 'REGISTERED'
+               )) / capacity * 100, 2) end as rate
+        from activity
+        order by rate desc, value desc
+        limit #{size}
+    </select>
+
+    <select id="selectCouponConversions" resultMap="RankResultMap">
+        select name,
+               greatest(claimed_count, (
+                   select count(1)
+                   from user_coupon uc
+                   where uc.batch_id = coupon_batch.id
+               )) as value,
+               cast(stock as char) as detail,
+               case when stock = 0 then 0 else round(greatest(claimed_count, (
+                   select count(1)
+                   from user_coupon uc
+                   where uc.batch_id = coupon_batch.id
+               )) / stock * 100, 2) end as rate
+        from coupon_batch
+        order by rate desc, value desc
+        limit #{size}
+    </select>
+
+    <select id="selectActiveUsers" resultMap="RankResultMap">
+        select coalesce(max(username), concat('#', user_id)) as name,
+               sum(total_count) as value,
+               concat(count(distinct stat_date), ' active days') as detail,
+               null as rate
+        from user_activity_day_stat
+        where stat_date >= date_sub(current_date, interval #{days} day)
+        group by user_id
+        order by value desc
+        limit #{size}
+    </select>
+
+    <select id="selectRecentApiLogs" resultMap="ApiAccessLogResultMap">
+        select id, method, path, status_code, duration_ms, user_id, username, ip_address, created_at
+        from api_access_log
+        order by id desc
+        limit #{size}
+    </select>
+
+    <select id="selectRecentOperationLogs" resultMap="OperationLogResultMap">
+        select id, user_id, username, method, path, action, status_code, duration_ms, ip_address, created_at
+        from operation_log
+        order by id desc
+        limit #{size}
+    </select>
+
+    <insert id="insertApiAccessLog">
+        insert into api_access_log (
+            method, path, status_code, duration_ms, user_id, username, ip_address, user_agent
+        ) values (
+            #{method}, #{path}, #{statusCode}, #{durationMs}, #{userId}, #{username}, #{ipAddress}, #{userAgent}
+        )
+    </insert>
+
+    <insert id="insertOperationLog">
+        insert into operation_log (
+            user_id, username, method, path, action, status_code, duration_ms, ip_address
+        ) values (
+            #{userId}, #{username}, #{method}, #{path}, #{action}, #{statusCode}, #{durationMs}, #{ipAddress}
+        )
+    </insert>
+
+    <insert id="refreshApiAccessMinuteStats">
+        insert into api_access_minute_stat (
+            stat_minute, total_count, error_count, avg_duration_ms
+        )
+        select str_to_date(date_format(created_at, '%Y-%m-%d %H:%i:00'), '%Y-%m-%d %H:%i:%s') as stat_minute,
+               count(1) as total_count,
+               sum(case when status_code >= 400 then 1 else 0 end) as error_count,
+               round(avg(duration_ms)) as avg_duration_ms
+        from api_access_log
+        where created_at >= date_sub(now(), interval #{hours} hour)
+        group by str_to_date(date_format(created_at, '%Y-%m-%d %H:%i:00'), '%Y-%m-%d %H:%i:%s')
+        on duplicate key update
+            total_count = values(total_count),
+            error_count = values(error_count),
+            avg_duration_ms = values(avg_duration_ms)
+    </insert>
+
+    <insert id="refreshApiPathHourStats">
+        insert into api_path_hour_stat (
+            stat_hour, method, path, total_count, error_count, avg_duration_ms, max_status_code
+        )
+        select str_to_date(date_format(created_at, '%Y-%m-%d %H:00:00'), '%Y-%m-%d %H:%i:%s') as stat_hour,
+               method,
+               path,
+               count(1) as total_count,
+               sum(case when status_code >= 400 then 1 else 0 end) as error_count,
+               round(avg(duration_ms)) as avg_duration_ms,
+               max(status_code) as max_status_code
+        from api_access_log
+        where created_at >= date_sub(now(), interval #{hours} hour)
+        group by str_to_date(date_format(created_at, '%Y-%m-%d %H:00:00'), '%Y-%m-%d %H:%i:%s'), method, path
+        on duplicate key update
+            total_count = values(total_count),
+            error_count = values(error_count),
+            avg_duration_ms = values(avg_duration_ms),
+            max_status_code = values(max_status_code)
+    </insert>
+
+    <insert id="refreshUserActivityDayStats">
+        insert into user_activity_day_stat (
+            stat_date, user_id, username, total_count, operation_count
+        )
+        select date(created_at) as stat_date,
+               user_id,
+               max(username) as username,
+               count(1) as total_count,
+               sum(case when method not in ('GET', 'OPTIONS') and status_code &lt; 400 then 1 else 0 end) as operation_count
+        from api_access_log
+        where created_at >= date_sub(now(), interval #{days} day)
+          and user_id is not null
+        group by date(created_at), user_id
+        on duplicate key update
+            username = values(username),
+            total_count = values(total_count),
+            operation_count = values(operation_count)
+    </insert>
+
+    <delete id="deleteApiAccessMinuteStatsBefore">
+        delete from api_access_minute_stat
+        where stat_minute &lt; date_sub(now(), interval #{days} day)
+    </delete>
+
+    <delete id="deleteApiPathHourStatsBefore">
+        delete from api_path_hour_stat
+        where stat_hour &lt; date_sub(now(), interval #{days} day)
+    </delete>
+
+    <delete id="deleteUserActivityDayStatsBefore">
+        delete from user_activity_day_stat
+        where stat_date &lt; date_sub(current_date, interval #{days} day)
+    </delete>
+
+    <delete id="deleteApiAccessLogsBefore">
+        delete from api_access_log
+        where created_at &lt; date_sub(now(), interval #{days} day)
+    </delete>
+
+    <delete id="deleteOperationLogsBefore">
+        delete from operation_log
+        where created_at &lt; date_sub(now(), interval #{days} day)
+    </delete>
+</mapper>

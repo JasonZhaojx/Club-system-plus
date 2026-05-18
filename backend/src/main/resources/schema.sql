@@ -358,6 +358,80 @@ alter table coupon_batch convert to character set utf8mb4 collate utf8mb4_unicod
 alter table user_coupon convert to character set utf8mb4 collate utf8mb4_unicode_ci;
 alter table coupon_redemption convert to character set utf8mb4 collate utf8mb4_unicode_ci;
 alter table coupon_claim_task convert to character set utf8mb4 collate utf8mb4_unicode_ci;
+
+create table if not exists api_access_log (
+    id bigint primary key auto_increment,
+    method varchar(10) not null,
+    path varchar(255) not null,
+    status_code int not null,
+    duration_ms bigint not null,
+    user_id bigint null,
+    username varchar(50) null,
+    ip_address varchar(64) null,
+    user_agent varchar(500) null,
+    created_at datetime not null default current_timestamp,
+    key idx_api_access_log_created_at (created_at),
+    key idx_api_access_log_path_created_at (path, created_at),
+    key idx_api_access_log_status_created_at (status_code, created_at)
+);
+
+create table if not exists operation_log (
+    id bigint primary key auto_increment,
+    user_id bigint null,
+    username varchar(50) null,
+    method varchar(10) not null,
+    path varchar(255) not null,
+    action varchar(120) not null,
+    status_code int not null,
+    duration_ms bigint not null,
+    ip_address varchar(64) null,
+    created_at datetime not null default current_timestamp,
+    key idx_operation_log_created_at (created_at),
+    key idx_operation_log_user_created_at (user_id, created_at),
+    key idx_operation_log_action_created_at (action, created_at)
+);
+
+alter table api_access_log convert to character set utf8mb4 collate utf8mb4_unicode_ci;
+alter table operation_log convert to character set utf8mb4 collate utf8mb4_unicode_ci;
+
+create table if not exists api_access_minute_stat (
+    stat_minute datetime primary key,
+    total_count bigint not null default 0,
+    error_count bigint not null default 0,
+    avg_duration_ms bigint not null default 0,
+    updated_at datetime not null default current_timestamp on update current_timestamp
+);
+
+create table if not exists api_path_hour_stat (
+    stat_hour datetime not null,
+    method varchar(10) not null,
+    path varchar(255) not null,
+    total_count bigint not null default 0,
+    error_count bigint not null default 0,
+    avg_duration_ms bigint not null default 0,
+    max_status_code int not null default 200,
+    updated_at datetime not null default current_timestamp on update current_timestamp,
+    primary key (stat_hour, method, path),
+    key idx_api_path_hour_stat_path (path, stat_hour),
+    key idx_api_path_hour_stat_total (stat_hour, total_count),
+    key idx_api_path_hour_stat_error (stat_hour, error_count)
+);
+
+create table if not exists user_activity_day_stat (
+    stat_date date not null,
+    user_id bigint not null,
+    username varchar(50) null,
+    total_count bigint not null default 0,
+    operation_count bigint not null default 0,
+    updated_at datetime not null default current_timestamp on update current_timestamp,
+    primary key (stat_date, user_id),
+    key idx_user_activity_day_stat_total (stat_date, total_count)
+);
+
+alter table api_access_minute_stat convert to character set utf8mb4 collate utf8mb4_unicode_ci;
+alter table api_path_hour_stat convert to character set utf8mb4 collate utf8mb4_unicode_ci;
+alter table user_activity_day_stat convert to character set utf8mb4 collate utf8mb4_unicode_ci;
+
 insert ignore into permission (code, name, description) values
 ('coupon:manage', '管理优惠券', '创建和管理优惠券批次');
 

@@ -13,14 +13,6 @@ import { getErrorMessage, showToast } from '@/toast'
 const fallbackImage =
   'https://images.unsplash.com/photo-1521737604893-d14cc237f11d?auto=format&fit=crop&w=1200&q=80'
 
-const roleNames: Record<string, string> = {
-  REGISTERED_USER: '注册用户',
-  CLUB_MEMBER: '普通成员',
-  DEPARTMENT_LEADER: '部门负责人',
-  PRESIDENT: '社长',
-  SYSTEM_MAINTAINER: '系统维护者',
-}
-
 function formatDateTime(value: string) {
   return new Date(value).toLocaleString('zh-CN', {
     year: 'numeric',
@@ -29,6 +21,10 @@ function formatDateTime(value: string) {
     hour: '2-digit',
     minute: '2-digit',
   })
+}
+
+function isActivityEnded(activity: Activity) {
+  return activity.status === 'ENDED' || Date.now() >= new Date(activity.endTime).getTime()
 }
 
 export default function ActivityDetailView() {
@@ -129,40 +125,47 @@ export default function ActivityDetailView() {
     return <section className="content public-page">正在加载活动...</section>
   }
 
+  const ended = isActivityEnded(activity)
+
   return (
     <section className="content public-page">
-      <article className="detail-article activity-detail-layout">
+      <article className={`detail-article activity-detail-layout${ended ? ' activity-detail-ended' : ''}`}>
         <img alt={activity.title} src={activity.imageUrl || fallbackImage} />
         <div className="detail-body">
           <button className="back-button" onClick={() => navigate(-1)} type="button">
             返回
           </button>
-          <p className="profile-eyebrow">{activity.categoryName}</p>
+          <div className="detail-kicker-row">
+            <p className="profile-eyebrow">{activity.categoryName}</p>
+            {ended && <span className="activity-ended-pill">已结束</span>}
+          </div>
           <h1>{activity.title}</h1>
           <div className="detail-meta">
             <span>{formatDateTime(activity.startTime)}</span>
             <span>{activity.location}</span>
-            <span>{remaining} / {activity.capacity} 个名额可用</span>
+            {!ended && <span>{remaining} / {activity.capacity} 个名额可用</span>}
           </div>
           <p>{activity.detail}</p>
         </div>
-        <aside className="activity-apply-panel">
-          <span>报名状态</span>
-          <strong>{registered ? '已报名' : remaining > 0 ? '开放报名' : '名额已满'}</strong>
-          <p>{roleAllowed ? '你可以报名参加该活动。' : '当前账号暂不可报名该活动。'}</p>
-          <div className="activity-capacity-bar">
-            <span style={{ width: `${Math.min((activity.registeredCount / activity.capacity) * 100, 100)}%` }} />
-          </div>
-          {registered ? (
-            <button className="secondary-button" disabled={saving} onClick={handleCancelRegistration} type="button">
-              取消报名
-            </button>
-          ) : (
-            <button disabled={saving || remaining <= 0 || !roleAllowed || registrationClosed} onClick={handleRegister} type="button">
-              {registrationClosed ? '报名已截止' : roleAllowed ? '立即报名' : '当前身份不可报名'}
-            </button>
-          )}
-        </aside>
+        {!ended && (
+          <aside className="activity-apply-panel">
+            <span>报名状态</span>
+            <strong>{registered ? '已报名' : remaining > 0 ? '开放报名' : '名额已满'}</strong>
+            <p>{roleAllowed ? '你可以报名参加该活动。' : '当前账号暂不可报名该活动。'}</p>
+            <div className="activity-capacity-bar">
+              <span style={{ width: `${Math.min((activity.registeredCount / activity.capacity) * 100, 100)}%` }} />
+            </div>
+            {registered ? (
+              <button className="secondary-button" disabled={saving} onClick={handleCancelRegistration} type="button">
+                取消报名
+              </button>
+            ) : (
+              <button disabled={saving || remaining <= 0 || !roleAllowed || registrationClosed} onClick={handleRegister} type="button">
+                {registrationClosed ? '报名已截止' : roleAllowed ? '立即报名' : '当前身份不可报名'}
+              </button>
+            )}
+          </aside>
+        )}
       </article>
     </section>
   )

@@ -1,7 +1,7 @@
 import { useEffect, useState } from 'react'
 import { NavLink, Outlet, useNavigate } from 'react-router-dom'
 import { logout } from '@/api/modules/auth'
-import { canAccessAdmin, clearAuth, getStoredUser } from '@/auth'
+import { canAccessAdmin, canAccessDashboard, clearAuth, getStoredUser } from '@/auth'
 import type { UserProfile } from '@/api/modules/auth'
 import { TOAST_EVENT, type ToastPayload } from '@/toast'
 
@@ -104,6 +104,7 @@ export default function App() {
           {user && <NavLink to="/my-activities">我的活动</NavLink>}
           {user && <NavLink to="/my-coupons">我的券包</NavLink>}
           {canAccessAdmin(user) && <NavLink to="/admin">后台</NavLink>}
+          {canAccessDashboard(user) && <NavLink to="/dashboard">数据面板</NavLink>}
         </nav>
       </aside>
       <Outlet />

@@ -14,6 +14,7 @@ public interface ActivityMapper extends BaseMapper<Activity> {
             @Param("keyword") String keyword,
             @Param("category") String category,
             @Param("status") ActivityStatus status,
+            @Param("publicOnly") boolean publicOnly,
             @Param("sort") String sort,
             @Param("offset") int offset,
             @Param("size") int size
@@ -22,7 +23,8 @@ public interface ActivityMapper extends BaseMapper<Activity> {
     long countActivities(
             @Param("keyword") String keyword,
             @Param("category") String category,
-            @Param("status") ActivityStatus status
+            @Param("status") ActivityStatus status,
+            @Param("publicOnly") boolean publicOnly
     );
 
     int updateActivity(Activity activity);

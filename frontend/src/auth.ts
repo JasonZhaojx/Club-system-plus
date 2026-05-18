@@ -43,6 +43,13 @@ export function canAccessAdmin(user: UserProfile | null) {
   return hasPermission(user, 'dashboard:view')
 }
 
+export function canAccessDashboard(user: UserProfile | null) {
+  if (!user) {
+    return false
+  }
+  return user.roles.includes('PRESIDENT') || user.roles.includes('SYSTEM_MAINTAINER')
+}
+
 export function hasPermission(user: UserProfile | null, permission: string) {
   if (!user) {
     return false
