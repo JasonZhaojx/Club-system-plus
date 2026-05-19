@@ -73,7 +73,8 @@ create table if not exists club_member (
     updated_at datetime not null default current_timestamp on update current_timestamp,
     unique key uk_club_member_user (user_id),
     key idx_club_member_department_id (department_id),
-    key idx_club_member_status (status)
+    key idx_club_member_status (status),
+    key idx_club_member_department_status (department_id, status)
 );
 
 create table if not exists department_leader (
@@ -109,7 +110,10 @@ create table if not exists activity (
     updated_at datetime not null default current_timestamp on update current_timestamp,
     key idx_activity_status (status),
     key idx_activity_category (category),
-    key idx_activity_start_time (start_time)
+    key idx_activity_start_time (start_time),
+    key idx_activity_public_query (status, category, start_time, id),
+    key idx_activity_latest_query (status, published_at, id),
+    key idx_activity_capacity_query (status, registered_count, capacity)
 );
 
 create table if not exists activity_registration (
@@ -123,7 +127,8 @@ create table if not exists activity_registration (
     updated_at datetime not null default current_timestamp on update current_timestamp,
     unique key uk_activity_registration_user (activity_id, user_id),
     key idx_activity_registration_user_id (user_id),
-    key idx_activity_registration_status (status)
+    key idx_activity_registration_status (status),
+    key idx_activity_registration_activity_status (activity_id, status)
 );
 
 alter table app_user convert to character set utf8mb4 collate utf8mb4_unicode_ci;
@@ -311,7 +316,9 @@ create table if not exists coupon_batch (
     created_at datetime not null default current_timestamp,
     updated_at datetime not null default current_timestamp on update current_timestamp,
     key idx_coupon_batch_status (status),
-    key idx_coupon_batch_claim_time (claim_start_time, claim_end_time)
+    key idx_coupon_batch_claim_time (claim_start_time, claim_end_time),
+    key idx_coupon_batch_status_created (status, created_at, id),
+    key idx_coupon_batch_active_window (status, claim_start_time, claim_end_time, expire_time)
 );
 
 create table if not exists user_coupon (
@@ -325,7 +332,9 @@ create table if not exists user_coupon (
     updated_at datetime not null default current_timestamp on update current_timestamp,
     unique key uk_user_coupon_batch_user (batch_id, user_id),
     key idx_user_coupon_user_id (user_id),
-    key idx_user_coupon_status (status)
+    key idx_user_coupon_status (status),
+    key idx_user_coupon_user_status (user_id, status),
+    key idx_user_coupon_batch_status (batch_id, status)
 );
 
 create table if not exists coupon_redemption (

@@ -30,3 +30,7 @@ app:
   jwt:
     secret: change-this-development-secret-at-least-32-chars
     expiration-seconds: 86400
+  rate-limit:
+    enabled: true
+    capacity: 120
+    refill-per-second: 60

@@ -14,29 +14,53 @@ import com.backend.sever.exception.BusinessException;
 import com.backend.sever.exception.ErrorCode;
 import com.backend.sever.mapper.ActivityMapper;
 import com.backend.sever.mapper.ActivityRegistrationMapper;
+import com.fasterxml.jackson.core.JsonProcessingException;
+import com.fasterxml.jackson.core.type.TypeReference;
+import com.fasterxml.jackson.databind.ObjectMapper;
+import org.springframework.data.redis.core.StringRedisTemplate;
 import org.springframework.stereotype.Service;
 import org.springframework.transaction.annotation.Transactional;
 import org.springframework.util.StringUtils;
 
 import java.time.LocalDateTime;
 import java.util.List;
+import java.util.Set;
+import java.util.concurrent.TimeUnit;
 
 @Service
 public class ActivityServiceImpl implements com.backend.sever.service.ActivityService {
+    private static final String PUBLIC_LIST_CACHE_PREFIX = "hot:activity:list:";
+    private static final String PUBLIC_DETAIL_CACHE_PREFIX = "hot:activity:detail:";
+    private static final TypeReference<PageVO<ActivityVO>> ACTIVITY_PAGE_TYPE = new TypeReference<>() {
+    };
+
     private final ActivityMapper activityMapper;
     private final ActivityRegistrationMapper activityRegistrationMapper;
+    private final StringRedisTemplate redisTemplate;
+    private final ObjectMapper objectMapper;
 
     public ActivityServiceImpl(
             ActivityMapper activityMapper,
-            ActivityRegistrationMapper activityRegistrationMapper
+            ActivityRegistrationMapper activityRegistrationMapper,
+            StringRedisTemplate redisTemplate,
+            ObjectMapper objectMapper
     ) {
         this.activityMapper = activityMapper;
         this.activityRegistrationMapper = activityRegistrationMapper;
+        this.redisTemplate = redisTemplate;
+        this.objectMapper = objectMapper;
     }
 
     @Override
     public PageVO<ActivityVO> listPublicActivities(String keyword, String category, String sort, int page, int size) {
-        return listActivities(keyword, category, null, true, sort, page, size);
+        String cacheKey = PUBLIC_LIST_CACHE_PREFIX + cachePart(keyword) + ":" + cachePart(category) + ":" + cachePart(sort) + ":" + page + ":" + size;
+        PageVO<ActivityVO> cached = readCache(cacheKey, ACTIVITY_PAGE_TYPE);
+        if (cached != null) {
+            return cached;
+        }
+        PageVO<ActivityVO> result = listActivities(keyword, category, null, true, sort, page, size);
+        writeCache(cacheKey, result, 30);
+        return result;
     }
 
     @Override
@@ -46,11 +70,18 @@ public class ActivityServiceImpl implements com.backend.sever.service.ActivitySe
 
     @Override
     public ActivityVO getPublicActivity(Long activityId) {
+        String cacheKey = PUBLIC_DETAIL_CACHE_PREFIX + activityId;
+        ActivityVO cached = readCache(cacheKey, ActivityVO.class);
+        if (cached != null) {
+            return cached;
+        }
         Activity activity = requireActivity(activityId);
         if (activity.getStatus() != ActivityStatus.PUBLISHED && activity.getStatus() != ActivityStatus.ENDED) {
             throw new BusinessException(ErrorCode.NOT_FOUND, "活动不存在或未发布");
         }
-        return ActivityVO.from(activity);
+        ActivityVO result = ActivityVO.from(activity);
+        writeCache(cacheKey, result, 60);
+        return result;
     }
 
     @Override
@@ -67,6 +98,7 @@ public class ActivityServiceImpl implements com.backend.sever.service.ActivitySe
         activity.setRegisteredCount(0);
         activity.setCreatorId(principal.userId());
         activityMapper.insert(activity);
+        evictPublicActivityCaches(null);
         return ActivityVO.from(activityMapper.selectById(activity.getId()));
     }
 
@@ -82,6 +114,7 @@ public class ActivityServiceImpl implements com.backend.sever.service.ActivitySe
         }
         fillActivity(activity, request);
         activityMapper.updateActivity(activity);
+        evictPublicActivityCaches(activityId);
         return ActivityVO.from(activityMapper.selectById(activityId));
     }
 
@@ -93,6 +126,7 @@ public class ActivityServiceImpl implements com.backend.sever.service.ActivitySe
             throw new BusinessException(ErrorCode.CONFLICT, "只有草稿活动可以提交审核");
         }
         activityMapper.updateStatus(activityId, ActivityStatus.PENDING_REVIEW, null);
+        evictPublicActivityCaches(activityId);
         return ActivityVO.from(activityMapper.selectById(activityId));
     }
 
@@ -104,6 +138,7 @@ public class ActivityServiceImpl implements com.backend.sever.service.ActivitySe
             throw new BusinessException(ErrorCode.CONFLICT, "当前状态不能发布");
         }
         activityMapper.updateStatus(activityId, ActivityStatus.PUBLISHED, principal.userId());
+        evictPublicActivityCaches(activityId);
         return ActivityVO.from(activityMapper.selectById(activityId));
     }
 
@@ -115,6 +150,7 @@ public class ActivityServiceImpl implements com.backend.sever.service.ActivitySe
             throw new BusinessException(ErrorCode.CONFLICT, "已结束活动不能取消");
         }
         activityMapper.updateStatus(activityId, ActivityStatus.CANCELLED, null);
+        evictPublicActivityCaches(activityId);
         return ActivityVO.from(activityMapper.selectById(activityId));
     }
 
@@ -126,6 +162,7 @@ public class ActivityServiceImpl implements com.backend.sever.service.ActivitySe
             throw new BusinessException(ErrorCode.CONFLICT, "只有已发布活动可以结束");
         }
         activityMapper.updateStatus(activityId, ActivityStatus.ENDED, null);
+        evictPublicActivityCaches(activityId);
         return ActivityVO.from(activityMapper.selectById(activityId));
     }
 
@@ -158,6 +195,7 @@ public class ActivityServiceImpl implements com.backend.sever.service.ActivitySe
         } else {
             activityRegistrationMapper.reactivateRegistration(existing.getId());
         }
+        evictPublicActivityCaches(activityId);
         return activityRegistrationMapper.selectUserRegistrations(principal.userId())
                 .stream()
                 .filter(item -> item.getActivityId().equals(activityId))
@@ -174,6 +212,7 @@ public class ActivityServiceImpl implements com.backend.sever.service.ActivitySe
         }
         activityRegistrationMapper.updateStatus(registration.getId(), ActivityRegistrationStatus.CANCELLED);
         activityMapper.decrementRegistrationCount(activityId);
+        evictPublicActivityCaches(activityId);
     }
 
     @Override
@@ -303,5 +342,49 @@ public class ActivityServiceImpl implements com.backend.sever.service.ActivitySe
             case "PRESIDENT" -> roles.contains("PRESIDENT");
             default -> roles.contains(requiredRoleCode);
         };
+    }
+
+    private String cachePart(String value) {
+        return StringUtils.hasText(value) ? value.trim() : "_";
+    }
+
+    private <T> T readCache(String key, Class<T> type) {
+        try {
+            String raw = redisTemplate.opsForValue().get(key);
+            return raw == null ? null : objectMapper.readValue(raw, type);
+        } catch (RuntimeException | JsonProcessingException ignored) {
+            return null;
+        }
+    }
+
+    private <T> T readCache(String key, TypeReference<T> type) {
+        try {
+            String raw = redisTemplate.opsForValue().get(key);
+            return raw == null ? null : objectMapper.readValue(raw, type);
+        } catch (RuntimeException | JsonProcessingException ignored) {
+            return null;
+        }
+    }
+
+    private void writeCache(String key, Object value, long ttlSeconds) {
+        try {
+            redisTemplate.opsForValue().set(key, objectMapper.writeValueAsString(value), ttlSeconds, TimeUnit.SECONDS);
+        } catch (RuntimeException | JsonProcessingException ignored) {
+            // Hot cache is an optimization; database remains the source of truth
+        }
+    }
+
+    private void evictPublicActivityCaches(Long activityId) {
+        try {
+            Set<String> keys = redisTemplate.keys(PUBLIC_LIST_CACHE_PREFIX + "*");
+            if (keys != null && !keys.isEmpty()) {
+                redisTemplate.delete(keys);
+            }
+            if (activityId != null) {
+                redisTemplate.delete(PUBLIC_DETAIL_CACHE_PREFIX + activityId);
+            }
+        } catch (RuntimeException ignored) {
+            // Cache invalidation failure should not break business writes.
+        }
     }
 }

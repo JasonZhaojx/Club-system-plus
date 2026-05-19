@@ -298,3 +298,178 @@ WHERE id = ?
 6. 增加 RabbitMQ 消费者，异步写入 `user_coupon`。
 7. 增加补偿任务，扫描未完成任务并重新投递。
 8. 将同一套模式扩展到活动抢票接口。
+## 2026-05-18 性能优化更新
+
+### Dashboard overview 加载优化
+
+已调整 overview 数据加载方式：
+
+- overview 接口不再在请求线程里同步执行 `refreshApiAccessMinuteStats`、`refreshApiPathHourStats`、`refreshUserActivityDayStats`。
+- 汇总表刷新继续交给 `DashboardStatScheduler` 后台定时任务执行。
+- Redis 缓存只缓存统计图表和排行数据，不再缓存最近 API 日志和操作日志。
+- 最近 API 日志、操作日志每次请求实时查询最新 20 条，避免面板出现“日志不更新”的错觉。
+
+原因：
+
+- 原实现缓存未命中时会同步扫描 `api_access_log` 并回写多个汇总表，日志量变大后会直接拖慢 overview。
+- 最近日志被包含在 45 秒 overview 缓存中，新增日志不会立刻反映到页面。
+
+### 数据库索引优化
+
+已在 `schema.sql` 和启动初始化器中补充复合索引，覆盖已有数据库和新建数据库两种场景。
+
+新增索引重点覆盖：
+
+- 活动公开列表：`activity(status, category, start_time, id)`
+- 活动后台最新排序：`activity(status, published_at, id)`
+- 活动容量排序/报名容量判断：`activity(status, registered_count, capacity)`
+- 活动报名统计：`activity_registration(activity_id, status)`
+- 部门成员筛选：`club_member(department_id, status)`
+- 优惠券批次分页：`coupon_batch(status, created_at, id)`
+- 优惠券领取窗口：`coupon_batch(status, claim_start_time, claim_end_time, expire_time)`
+- 用户券包查询：`user_coupon(user_id, status)`
+- 批次券状态统计：`user_coupon(batch_id, status)`
+
+实现文件：
+
+- `backend/src/main/resources/schema.sql`
+- `backend/src/main/java/com/backend/sever/config/DatabaseIndexInitializer.java`
+
+### Redis 热点数据缓存
+
+已对稳定且高频的读接口增加 Redis 缓存：
+
+- 公开活动列表：`hot:activity:list:*`，TTL 30 秒
+- 公开活动详情：`hot:activity:detail:{activityId}`，TTL 60 秒
+- 部门列表：`hot:department:list`，TTL 5 分钟
+
+写操作会主动清理相关缓存：
+
+- 创建/更新/提交/发布/取消/结束活动
+- 活动报名/取消报名
+- 创建/更新/启用/停用部门
+
+Redis 不可用时自动降级为查数据库，不影响主流程。
+
+实现文件：
+
+- `backend/src/main/java/com/backend/sever/service/impl/ActivityServiceImpl.java`
+- `backend/src/main/java/com/backend/sever/service/impl/OrganizationServiceImpl.java`
+
+### 接口令牌桶限流
+
+新增 Redis Lua 令牌桶限流过滤器，按 `IP + Method + 归一化路径` 维度限流。
+
+默认配置：
+
+```yaml
+app:
+  rate-limit:
+    enabled: true
+    capacity: 120
+    refill-per-second: 60
+```
+
+行为：
+
+- 每个桶容量 120
+- 每秒补充 60 个 token
+- 每个请求消耗 1 个 token
+- 超限返回 HTTP `429`
+- Redis 不可用时放行，避免限流组件影响业务可用性
+- 路径中的数字 ID 会归一化为 `{id}`，避免 `/activities/1`、`/activities/2` 产生过多限流 key
+
+实现文件：
+
+- `backend/src/main/java/com/backend/sever/config/RateLimitProperties.java`
+- `backend/src/main/java/com/backend/sever/config/TokenBucketRateLimitFilter.java`
+- `backend/src/main/resources/application.yml`
+
+## 2026-05-18 当前性能与缓存实现状态
+
+### Dashboard 缓存与刷新
+
+当前 `dashboard:overview:v1` 只缓存 overview 的统计、图表和排行数据：
+
+- 基础指标：用户数、成员数、部门数、活动数、报名数、优惠券领取数。
+- 图表数据：活动状态、成员状态、API 访问趋势。
+- 排行数据：热门接口、慢接口、异常接口、活动转化率、优惠券领取转化率、活跃用户排行。
+
+当前不再缓存最近 API 日志和操作日志：
+
+- `apiLogs` 每次 overview 请求实时查询最新 20 条。
+- `operationLogs` 每次 overview 请求实时查询最新 20 条。
+
+刷新行为：
+
+- 自动刷新和用户手动刷新目前都调用同一个 overview 接口。
+- 如果 `dashboard:overview:v1` 命中，统计、图表和排行会直接走缓存。
+- 如果 `dashboard:overview:v1` 未命中，后端查询当前汇总表并重新写入 Redis。
+- 手动刷新当前不会强制删除 `dashboard:overview:v1`，因此统计类数据最多存在 45 秒缓存延迟。
+- 不在用户请求线程中同步刷新汇总表，避免恢复之前 9-12 秒加载问题。
+
+### Dashboard 定时任务
+
+后台定时任务负责刷新汇总表和清理历史数据：
+
+- 每 1 分钟刷新 `api_access_minute_stat` 最近 2 小时数据，并删除 `dashboard:overview:v1`。
+- 每 10 分钟刷新 `api_path_hour_stat` 最近 48 小时数据。
+- 每 10 分钟刷新 `user_activity_day_stat` 最近 7 天数据。
+- 每天 03:20 执行日志和汇总表清理。
+
+SQL 保留周期：
+
+- `api_access_log`：保留 30 天。
+- `operation_log`：保留 180 天。
+- `api_access_minute_stat`：保留 14 天。
+- `api_path_hour_stat`：保留 90 天。
+- `user_activity_day_stat`：保留 180 天。
+
+### Redis Key 当前策略
+
+当前 Redis key 与 TTL：
+
+- `dashboard:overview:v1`：45 秒；定时任务刷新汇总后会主动删除。
+- `hot:activity:list:*`：30 秒。
+- `hot:activity:detail:{activityId}`：60 秒。
+- `hot:department:list`：5 分钟。
+- `rate:bucket:{ip}:{method}:{path}`：120 秒。
+- `coupon:batch:{batchId}:stock`：按优惠券 `expire_time + 5 天` 过期。
+- `coupon:batch:{batchId}:users`：按优惠券 `expire_time + 5 天` 过期。
+
+`coupon:claim:queue` 暂不设置短 TTL。它是待落库队列，应由 `CouponClaimWorker` 消费清空，不能因为 Redis 过期导致未落库任务丢失。
+
+### 限流当前状态
+
+当前已实现 Redis Lua 令牌桶限流：
+
+- 维度：`IP + Method + 归一化路径`。
+- 默认桶容量：120。
+- 默认补充速率：60 token/s。
+- 超限返回 HTTP `429`。
+- Redis 异常时放行，避免限流组件影响核心业务可用性。
+
+说明：
+
+- 该限流适合保护接口入口。
+- 压测接口真实 QPS 时，需要临时关闭或调高 `app.rate-limit`。
+- 后续如需保护单个活动或单个优惠券批次，应增加热点参数限流，例如 `activityId`、`couponBatchId` 维度。
+
+### 优惠券 Redis Key 过期策略
+
+已给优惠券批次相关 Redis key 增加 TTL：
+
+- `coupon:batch:{batchId}:stock`
+- `coupon:batch:{batchId}:users`
+
+过期时间规则：
+
+- 优先按 `coupon_batch.expire_time + 5 天` 计算。
+- 如果批次没有 `expire_time`，默认保留 5 天。
+- 如果计算结果已经过期，则至少保留 60 秒，避免写入 Redis 时 TTL 非法。
+
+说明：
+
+- `stock` key 在优惠券预加载时写入 TTL。
+- `users` key 可能在用户首次抢券时才创建，因此 Lua 抢券脚本每次会同步给 `stock/users` 设置 TTL。
+- `coupon:claim:queue` 暂不设置短 TTL，因为它是待落库队列，应由 worker 消费清空，不能因为过期导致未落库任务丢失。

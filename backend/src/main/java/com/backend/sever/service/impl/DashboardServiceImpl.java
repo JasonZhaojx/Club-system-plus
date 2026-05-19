@@ -37,11 +37,9 @@ public class DashboardServiceImpl implements DashboardService {
     public DashboardOverviewVO overview() {
         DashboardOverviewVO cached = readCache();
         if (cached != null) {
+            fillRecentLogs(cached);
             return cached;
         }
-        dashboardMapper.refreshApiAccessMinuteStats(2);
-        dashboardMapper.refreshApiPathHourStats(48);
-        dashboardMapper.refreshUserActivityDayStats(7);
         DashboardOverviewVO overview = new DashboardOverviewVO();
         overview.setRefreshedAt(LocalDateTime.now());
         overview.setMetrics(List.of(
@@ -61,10 +59,14 @@ public class DashboardServiceImpl implements DashboardService {
         overview.setActivityConversions(toConversions(dashboardMapper.selectActivityConversions(8)));
         overview.setCouponConversions(toConversions(dashboardMapper.selectCouponConversions(8)));
         overview.setActiveUsers(dashboardMapper.selectActiveUsers(7, 8));
+        writeCache(overview);
+        fillRecentLogs(overview);
+        return overview;
+    }
+
+    private void fillRecentLogs(DashboardOverviewVO overview) {
         overview.setApiLogs(dashboardMapper.selectRecentApiLogs(20));
         overview.setOperationLogs(dashboardMapper.selectRecentOperationLogs(20));
-        writeCache(overview);
-        return overview;
     }
 
     private DashboardOverviewVO readCache() {

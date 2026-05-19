@@ -24,47 +24,67 @@ import com.backend.sever.mapper.DepartmentMapper;
 import com.backend.sever.mapper.RoleMapper;
 import com.backend.sever.mapper.UserMapper;
 import com.backend.sever.service.OrganizationService;
+import com.fasterxml.jackson.core.JsonProcessingException;
+import com.fasterxml.jackson.core.type.TypeReference;
+import com.fasterxml.jackson.databind.ObjectMapper;
+import org.springframework.data.redis.core.StringRedisTemplate;
 import org.springframework.stereotype.Service;
 import org.springframework.transaction.annotation.Transactional;
 import org.springframework.util.StringUtils;
 
 import java.util.ArrayList;
 import java.util.List;
+import java.util.concurrent.TimeUnit;
 
 @Service
 public class OrganizationServiceImpl implements OrganizationService {
     private static final String CLUB_MEMBER_ROLE = "CLUB_MEMBER";
     private static final String REGISTERED_USER_ROLE = "REGISTERED_USER";
     private static final String DEPARTMENT_LEADER_ROLE = "DEPARTMENT_LEADER";
+    private static final String DEPARTMENT_LIST_CACHE_KEY = "hot:department:list";
+    private static final TypeReference<List<DepartmentVO>> DEPARTMENT_LIST_TYPE = new TypeReference<>() {
+    };
 
     private final DepartmentMapper departmentMapper;
     private final ClubMemberMapper clubMemberMapper;
     private final DepartmentLeaderMapper departmentLeaderMapper;
     private final UserMapper userMapper;
     private final RoleMapper roleMapper;
+    private final StringRedisTemplate redisTemplate;
+    private final ObjectMapper objectMapper;
 
     public OrganizationServiceImpl(
             DepartmentMapper departmentMapper,
             ClubMemberMapper clubMemberMapper,
             DepartmentLeaderMapper departmentLeaderMapper,
             UserMapper userMapper,
-            RoleMapper roleMapper
+            RoleMapper roleMapper,
+            StringRedisTemplate redisTemplate,
+            ObjectMapper objectMapper
     ) {
         this.departmentMapper = departmentMapper;
         this.clubMemberMapper = clubMemberMapper;
         this.departmentLeaderMapper = departmentLeaderMapper;
         this.userMapper = userMapper;
         this.roleMapper = roleMapper;
+        this.redisTemplate = redisTemplate;
+        this.objectMapper = objectMapper;
     }
 
     @Override
     public List<DepartmentVO> listDepartments() {
-        return departmentMapper.selectList(
+        List<DepartmentVO> cached = readDepartmentCache();
+        if (cached != null) {
+            return cached;
+        }
+        List<DepartmentVO> result = departmentMapper.selectList(
                         new LambdaQueryWrapper<Department>().orderByAsc(Department::getId)
                 )
                 .stream()
                 .map(DepartmentVO::from)
                 .toList();
+        writeDepartmentCache(result);
+        return result;
     }
 
     @Override
@@ -79,6 +99,7 @@ public class OrganizationServiceImpl implements OrganizationService {
         department.setDescription(normalizeText(request.getDescription()));
         department.setStatus(DepartmentStatus.ACTIVE);
         departmentMapper.insert(department);
+        evictDepartmentCache();
         return DepartmentVO.from(departmentMapper.selectById(department.getId()));
     }
 
@@ -91,6 +112,7 @@ public class OrganizationServiceImpl implements OrganizationService {
             throw new BusinessException(ErrorCode.CONFLICT, "部门名称已存在");
         }
         departmentMapper.updateDepartment(department.getId(), name, normalizeText(request.getDescription()));
+        evictDepartmentCache();
         return DepartmentVO.from(departmentMapper.selectById(department.getId()));
     }
 
@@ -99,6 +121,7 @@ public class OrganizationServiceImpl implements OrganizationService {
     public void disableDepartment(Long departmentId) {
         Department department = requireDepartment(departmentId);
         departmentMapper.updateStatus(department.getId(), DepartmentStatus.DISABLED);
+        evictDepartmentCache();
     }
 
     @Override
@@ -106,6 +129,7 @@ public class OrganizationServiceImpl implements OrganizationService {
     public void enableDepartment(Long departmentId) {
         Department department = requireDepartment(departmentId);
         departmentMapper.updateStatus(department.getId(), DepartmentStatus.ACTIVE);
+        evictDepartmentCache();
     }
 
     @Override
@@ -276,6 +300,36 @@ public class OrganizationServiceImpl implements OrganizationService {
         }
         if (!managedDepartmentIds(principal).contains(departmentId)) {
             throw new BusinessException(ErrorCode.FORBIDDEN, "只能管理本部门成员");
+        }
+    }
+
+    private List<DepartmentVO> readDepartmentCache() {
+        try {
+            String raw = redisTemplate.opsForValue().get(DEPARTMENT_LIST_CACHE_KEY);
+            return raw == null ? null : objectMapper.readValue(raw, DEPARTMENT_LIST_TYPE);
+        } catch (RuntimeException | JsonProcessingException ignored) {
+            return null;
+        }
+    }
+
+    private void writeDepartmentCache(List<DepartmentVO> departments) {
+        try {
+            redisTemplate.opsForValue().set(
+                    DEPARTMENT_LIST_CACHE_KEY,
+                    objectMapper.writeValueAsString(departments),
+                    5,
+                    TimeUnit.MINUTES
+            );
+        } catch (RuntimeException | JsonProcessingException ignored) {
+            // Hot cache is an optimization; database remains the source of truth.
+        }
+    }
+
+    private void evictDepartmentCache() {
+        try {
+            redisTemplate.delete(DEPARTMENT_LIST_CACHE_KEY);
+        } catch (RuntimeException ignored) {
+            // Cache invalidation failure should not break organization writes.
         }
     }
 }
