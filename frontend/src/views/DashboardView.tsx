@@ -9,6 +9,7 @@ import {
   type DashboardRank,
   type OperationLog,
 } from '@/api/modules/dashboard'
+import PageLoading from '@/components/PageLoading'
 import { getErrorMessage } from '@/toast'
 
 const statusLabels: Record<string, string> = {
@@ -327,7 +328,7 @@ export default function DashboardView() {
   }, [overview])
 
   if (loading && !overview) {
-    return <section className="content dashboard-page">正在加载数据面板...</section>
+    return <PageLoading className="content dashboard-page" />
   }
 
   return (

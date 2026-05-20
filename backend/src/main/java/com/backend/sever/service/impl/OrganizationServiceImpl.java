@@ -1,6 +1,7 @@
 package com.backend.sever.service.impl;
 
 import com.baomidou.mybatisplus.core.conditions.query.LambdaQueryWrapper;
+import com.backend.common.auth.AuthorizationCache;
 import com.backend.common.auth.UserPrincipal;
 import com.backend.pojo.dto.AssignDepartmentLeaderDTO;
 import com.backend.pojo.dto.AssignMemberDepartmentDTO;
@@ -50,6 +51,7 @@ public class OrganizationServiceImpl implements OrganizationService {
     private final DepartmentLeaderMapper departmentLeaderMapper;
     private final UserMapper userMapper;
     private final RoleMapper roleMapper;
+    private final AuthorizationCache authorizationCache;
     private final StringRedisTemplate redisTemplate;
     private final ObjectMapper objectMapper;
 
@@ -59,6 +61,7 @@ public class OrganizationServiceImpl implements OrganizationService {
             DepartmentLeaderMapper departmentLeaderMapper,
             UserMapper userMapper,
             RoleMapper roleMapper,
+            AuthorizationCache authorizationCache,
             StringRedisTemplate redisTemplate,
             ObjectMapper objectMapper
     ) {
@@ -67,6 +70,7 @@ public class OrganizationServiceImpl implements OrganizationService {
         this.departmentLeaderMapper = departmentLeaderMapper;
         this.userMapper = userMapper;
         this.roleMapper = roleMapper;
+        this.authorizationCache = authorizationCache;
         this.redisTemplate = redisTemplate;
         this.objectMapper = objectMapper;
     }
@@ -175,6 +179,7 @@ public class OrganizationServiceImpl implements OrganizationService {
         clubMemberMapper.upsertMember(request.getUserId(), request.getDepartmentId(), MemberStatus.ACTIVE);
         roleMapper.deleteUserRoleByCode(request.getUserId(), REGISTERED_USER_ROLE);
         roleMapper.insertUserRoleByCode(request.getUserId(), CLUB_MEMBER_ROLE);
+        authorizationCache.evictUser(request.getUserId());
         return clubMemberMapper.selectMemberVOByUserId(request.getUserId());
     }
 
@@ -199,6 +204,7 @@ public class OrganizationServiceImpl implements OrganizationService {
             roleMapper.deleteUserRoleByCode(request.getUserId(), CLUB_MEMBER_ROLE);
             roleMapper.insertUserRoleByCode(request.getUserId(), REGISTERED_USER_ROLE);
         }
+        authorizationCache.evictUser(request.getUserId());
         return clubMemberMapper.selectMemberVOByUserId(request.getUserId());
     }
 
@@ -232,6 +238,7 @@ public class OrganizationServiceImpl implements OrganizationService {
         roleMapper.deleteUserRoleByCode(request.getUserId(), REGISTERED_USER_ROLE);
         roleMapper.insertUserRoleByCode(request.getUserId(), CLUB_MEMBER_ROLE);
         roleMapper.insertUserRoleByCode(request.getUserId(), DEPARTMENT_LEADER_ROLE);
+        authorizationCache.evictUser(request.getUserId());
     }
 
     @Override
@@ -244,6 +251,7 @@ public class OrganizationServiceImpl implements OrganizationService {
         if (departmentLeaderMapper.countByUserId(request.getUserId()) == 0) {
             roleMapper.deleteUserRoleByCode(request.getUserId(), DEPARTMENT_LEADER_ROLE);
         }
+        authorizationCache.evictUser(request.getUserId());
     }
 
     private String requireDepartmentName(String name) {

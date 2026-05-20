@@ -1,6 +1,7 @@
 import { FormEvent, useEffect, useMemo, useState } from 'react'
 import { changePassword, getProfile, updateProfile, type UserProfile } from '@/api/modules/auth'
 import { saveUser } from '@/auth'
+import PageLoading from '@/components/PageLoading'
 import { getErrorMessage, showToast } from '@/toast'
 
 const roleNames: Record<string, string> = {
@@ -133,7 +134,7 @@ export default function ProfileView() {
   }
 
   if (loading) {
-    return <section className="content">正在加载个人资料...</section>
+    return <PageLoading />
   }
 
   if (!user) {

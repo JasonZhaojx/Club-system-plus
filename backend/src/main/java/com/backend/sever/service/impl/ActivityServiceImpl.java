@@ -17,11 +17,16 @@ import com.backend.sever.mapper.ActivityRegistrationMapper;
 import com.fasterxml.jackson.core.JsonProcessingException;
 import com.fasterxml.jackson.core.type.TypeReference;
 import com.fasterxml.jackson.databind.ObjectMapper;
+import com.github.benmanes.caffeine.cache.Cache;
+import com.github.benmanes.caffeine.cache.Caffeine;
 import org.springframework.data.redis.core.StringRedisTemplate;
 import org.springframework.stereotype.Service;
 import org.springframework.transaction.annotation.Transactional;
+import org.springframework.transaction.support.TransactionSynchronization;
+import org.springframework.transaction.support.TransactionSynchronizationManager;
 import org.springframework.util.StringUtils;
 
+import java.time.Duration;
 import java.time.LocalDateTime;
 import java.util.List;
 import java.util.Set;
@@ -38,6 +43,8 @@ public class ActivityServiceImpl implements com.backend.sever.service.ActivitySe
     private final ActivityRegistrationMapper activityRegistrationMapper;
     private final StringRedisTemplate redisTemplate;
     private final ObjectMapper objectMapper;
+    private final Cache<String, PageVO<ActivityVO>> publicListLocalCache;
+    private final Cache<Long, ActivityVO> publicDetailLocalCache;
 
     public ActivityServiceImpl(
             ActivityMapper activityMapper,
@@ -49,17 +56,31 @@ public class ActivityServiceImpl implements com.backend.sever.service.ActivitySe
         this.activityRegistrationMapper = activityRegistrationMapper;
         this.redisTemplate = redisTemplate;
         this.objectMapper = objectMapper;
+        this.publicListLocalCache = Caffeine.newBuilder()
+                .maximumSize(1_000)
+                .expireAfterWrite(Duration.ofSeconds(20))
+                .build();
+        this.publicDetailLocalCache = Caffeine.newBuilder()
+                .maximumSize(5_000)
+                .expireAfterWrite(Duration.ofSeconds(45))
+                .build();
     }
 
     @Override
     public PageVO<ActivityVO> listPublicActivities(String keyword, String category, String sort, int page, int size) {
         String cacheKey = PUBLIC_LIST_CACHE_PREFIX + cachePart(keyword) + ":" + cachePart(category) + ":" + cachePart(sort) + ":" + page + ":" + size;
+        PageVO<ActivityVO> localCached = publicListLocalCache.getIfPresent(cacheKey);
+        if (localCached != null) {
+            return localCached;
+        }
         PageVO<ActivityVO> cached = readCache(cacheKey, ACTIVITY_PAGE_TYPE);
         if (cached != null) {
+            publicListLocalCache.put(cacheKey, cached);
             return cached;
         }
         PageVO<ActivityVO> result = listActivities(keyword, category, null, true, sort, page, size);
         writeCache(cacheKey, result, 30);
+        publicListLocalCache.put(cacheKey, result);
         return result;
     }
 
@@ -71,8 +92,13 @@ public class ActivityServiceImpl implements com.backend.sever.service.ActivitySe
     @Override
     public ActivityVO getPublicActivity(Long activityId) {
         String cacheKey = PUBLIC_DETAIL_CACHE_PREFIX + activityId;
+        ActivityVO localCached = publicDetailLocalCache.getIfPresent(activityId);
+        if (localCached != null) {
+            return localCached;
+        }
         ActivityVO cached = readCache(cacheKey, ActivityVO.class);
         if (cached != null) {
+            publicDetailLocalCache.put(activityId, cached);
             return cached;
         }
         Activity activity = requireActivity(activityId);
@@ -81,6 +107,7 @@ public class ActivityServiceImpl implements com.backend.sever.service.ActivitySe
         }
         ActivityVO result = ActivityVO.from(activity);
         writeCache(cacheKey, result, 60);
+        publicDetailLocalCache.put(activityId, result);
         return result;
     }
 
@@ -375,6 +402,23 @@ public class ActivityServiceImpl implements com.backend.sever.service.ActivitySe
     }
 
     private void evictPublicActivityCaches(Long activityId) {
+        if (!TransactionSynchronizationManager.isSynchronizationActive()) {
+            doEvictPublicActivityCaches(activityId);
+            return;
+        }
+        TransactionSynchronizationManager.registerSynchronization(new TransactionSynchronization() {
+            @Override
+            public void afterCommit() {
+                doEvictPublicActivityCaches(activityId);
+            }
+        });
+    }
+
+    private void doEvictPublicActivityCaches(Long activityId) {
+        publicListLocalCache.invalidateAll();
+        if (activityId != null) {
+            publicDetailLocalCache.invalidate(activityId);
+        }
         try {
             Set<String> keys = redisTemplate.keys(PUBLIC_LIST_CACHE_PREFIX + "*");
             if (keys != null && !keys.isEmpty()) {

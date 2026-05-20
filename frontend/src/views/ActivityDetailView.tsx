@@ -8,6 +8,7 @@ import {
   type Activity,
 } from '@/api/modules/activity'
 import { getAccessToken, getStoredUser } from '@/auth'
+import PageLoading from '@/components/PageLoading'
 import { getErrorMessage, showToast } from '@/toast'
 
 const fallbackImage =
@@ -122,7 +123,7 @@ export default function ActivityDetailView() {
   }
 
   if (loading || !activity) {
-    return <section className="content public-page">正在加载活动...</section>
+    return <PageLoading className="content public-page" />
   }
 
   const ended = isActivityEnded(activity)
@@ -156,7 +157,7 @@ export default function ActivityDetailView() {
               <span style={{ width: `${Math.min((activity.registeredCount / activity.capacity) * 100, 100)}%` }} />
             </div>
             {registered ? (
-              <button className="secondary-button" disabled={saving} onClick={handleCancelRegistration} type="button">
+              <button className="cancel-registration-button" disabled={saving} onClick={handleCancelRegistration} type="button">
                 取消报名
               </button>
             ) : (

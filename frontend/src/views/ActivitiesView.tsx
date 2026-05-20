@@ -28,11 +28,20 @@ function isActivityEnded(activity: Activity) {
   return activity.status === 'ENDED' || Date.now() >= new Date(activity.endTime).getTime()
 }
 
+function LoadingLine() {
+  return (
+    <div className="loading-line" aria-label="正在加载">
+      <span />
+    </div>
+  )
+}
+
 export default function ActivitiesView() {
   const [activities, setActivities] = useState<Activity[]>([])
   const [category, setCategory] = useState('')
   const [keyword, setKeyword] = useState('')
   const [sortBy, setSortBy] = useState('latest')
+  const [filtersOpen, setFiltersOpen] = useState(false)
   const [page, setPage] = useState(1)
   const [total, setTotal] = useState(0)
   const [loading, setLoading] = useState(false)
@@ -95,31 +104,41 @@ export default function ActivitiesView() {
         </div>
       </div>
 
-      <div className="filter-bar">
-        {categories.map((item) => (
-          <button
-            className={category === item.value ? 'active' : ''}
-            key={item.value}
-            onClick={() => setCategory(item.value)}
-            type="button"
-          >
-            {item.label}
-          </button>
-        ))}
+      <div className={filtersOpen ? 'filters-shell open' : 'filters-shell'}>
+        <button className="filters-mobile-toggle" onClick={() => setFiltersOpen((open) => !open)} type="button">
+          <span>筛选</span>
+          <b>{filtersOpen ? '向上收起' : '向下展开'}</b>
+        </button>
+        <div className="filters-panel">
+          <div className="filter-bar">
+            {categories.map((item) => (
+              <button
+                className={category === item.value ? 'active' : ''}
+                key={item.value}
+                onClick={() => setCategory(item.value)}
+                type="button"
+              >
+                {item.label}
+              </button>
+            ))}
+          </div>
+
+          <div className="activity-tools">
+            <input
+              onChange={(event) => setKeyword(event.target.value)}
+              placeholder="搜索活动标题、地点或关键词"
+              value={keyword}
+            />
+            <select onChange={(event) => setSortBy(event.target.value)} value={sortBy}>
+              <option value="latest">最新发布</option>
+              <option value="upcoming">最近开始</option>
+              <option value="capacity">剩余名额优先</option>
+            </select>
+          </div>
+        </div>
       </div>
 
-      <div className="activity-tools">
-        <input
-          onChange={(event) => setKeyword(event.target.value)}
-          placeholder="搜索活动标题、地点或关键词"
-          value={keyword}
-        />
-        <select onChange={(event) => setSortBy(event.target.value)} value={sortBy}>
-          <option value="latest">最新发布</option>
-          <option value="upcoming">最近开始</option>
-          <option value="capacity">剩余名额优先</option>
-        </select>
-      </div>
+      {loading && <LoadingLine />}
 
       <div className="activity-grid">
         {activities.map((activity) => {
@@ -149,7 +168,7 @@ export default function ActivitiesView() {
       )}
 
       <div className="load-more-wrap" ref={loadMoreRef}>
-        {loading ? <span>正在加载活动...</span> : hasMore ? <span>继续向下浏览，自动加载更多活动</span> : <span>已展示全部活动</span>}
+        {loading ? <span className="load-more-progress" aria-label="正在加载"><i /></span> : hasMore ? <span>继续向下浏览，自动加载更多活动</span> : <span>已展示全部活动</span>}
       </div>
     </section>
   )

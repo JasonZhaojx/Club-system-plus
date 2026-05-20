@@ -9,6 +9,14 @@ function formatDate(value: string) {
 
 const batchSize = 8
 
+function LoadingLine() {
+  return (
+    <div className="loading-line" aria-label="正在加载">
+      <span />
+    </div>
+  )
+}
+
 export default function CouponsView() {
   const [batches, setBatches] = useState<CouponBatch[]>([])
   const [claimedBatchIds, setClaimedBatchIds] = useState<Set<number>>(new Set())
@@ -115,7 +123,7 @@ export default function CouponsView() {
         <button type="submit">查询</button>
       </form>
 
-      {loading && <div className="empty-state">正在加载优惠券...</div>}
+      {loading && <LoadingLine />}
       {!loading && error && <div className="empty-state">{error}</div>}
       {!loading && !error && !batches.length && <div className="empty-state">暂无可领取优惠券</div>}
 
@@ -143,6 +151,13 @@ export default function CouponsView() {
               </div>
             </dl>
             <button
+              className={
+                claimedBatchIds.has(batch.id)
+                  ? 'coupon-action-button coupon-action-claimed'
+                  : batch.remainingCount <= 0
+                    ? 'coupon-action-button coupon-action-empty'
+                    : 'coupon-action-button'
+              }
               disabled={claimedBatchIds.has(batch.id) || batch.remainingCount <= 0 || claimingId === batch.id}
               onClick={() => void handleClaim(batch)}
               type="button"
@@ -161,7 +176,7 @@ export default function CouponsView() {
 
       <div className="load-more-wrap" ref={loadMoreRef}>
         {loading
-          ? <span>正在加载优惠券...</span>
+          ? <span className="load-more-progress" aria-label="正在加载"><i /></span>
           : hasMore
             ? <span>继续向下浏览，自动加载更多优惠券</span>
             : batches.length

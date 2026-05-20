@@ -4,6 +4,7 @@ import {
   listMyActivityRegistrations,
   type ActivityRegistration,
 } from '@/api/modules/activity'
+import PageLoading from '@/components/PageLoading'
 import { getErrorMessage } from '@/toast'
 
 const fallbackImage =
@@ -88,9 +89,12 @@ export default function MyActivitiesView() {
           <h1>我的活动</h1>
           <p>查看当前账号报名过的活动、开始时间和报名状态。</p>
         </div>
+        <Link className="back-button" to="/my">
+          返回我的
+        </Link>
       </div>
 
-      {loading && <div className="empty-state">正在加载报名记录...</div>}
+      {loading && <PageLoading className="inline-loading-section" />}
       {!loading && error && <div className="empty-state">{error}</div>}
       {!loading && !error && !activeRegistrations.length && (
         <div className="empty-state">暂无已报名活动</div>

@@ -1,8 +1,6 @@
 package com.backend.common.auth;
 
 import com.backend.sever.exception.BusinessException;
-import com.backend.sever.mapper.PermissionMapper;
-import com.backend.sever.mapper.RoleMapper;
 import jakarta.servlet.FilterChain;
 import jakarta.servlet.ServletException;
 import jakarta.servlet.http.HttpServletRequest;
@@ -21,17 +19,14 @@ import java.util.stream.Stream;
 @Component
 public class JwtAuthenticationFilter extends OncePerRequestFilter {
     private final JwtService jwtService;
-    private final RoleMapper roleMapper;
-    private final PermissionMapper permissionMapper;
+    private final AuthorizationCache authorizationCache;
 
     public JwtAuthenticationFilter(
             JwtService jwtService,
-            RoleMapper roleMapper,
-            PermissionMapper permissionMapper
+            AuthorizationCache authorizationCache
     ) {
         this.jwtService = jwtService;
-        this.roleMapper = roleMapper;
-        this.permissionMapper = permissionMapper;
+        this.authorizationCache = authorizationCache;
     }
 
     @Override
@@ -44,14 +39,9 @@ public class JwtAuthenticationFilter extends OncePerRequestFilter {
         if (StringUtils.hasText(header) && header.startsWith("Bearer ")) {
             try {
                 UserPrincipal tokenPrincipal = jwtService.parse(header.substring(7));
-                List<String> roles = roleMapper.selectByUserId(tokenPrincipal.userId())
-                        .stream()
-                        .map(role -> role.getCode())
-                        .toList();
-                List<String> permissions = permissionMapper.selectByUserId(tokenPrincipal.userId())
-                        .stream()
-                        .map(permission -> permission.getCode())
-                        .toList();
+                AuthorizationCache.AuthorizationSnapshot authorization = authorizationCache.get(tokenPrincipal.userId());
+                List<String> roles = authorization.roles();
+                List<String> permissions = authorization.permissions();
                 UserPrincipal principal = new UserPrincipal(
                         tokenPrincipal.userId(),
                         tokenPrincipal.username(),

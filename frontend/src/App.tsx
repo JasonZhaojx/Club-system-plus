@@ -1,7 +1,7 @@
 import { useEffect, useState } from 'react'
 import { NavLink, Outlet, useNavigate } from 'react-router-dom'
 import { logout } from '@/api/modules/auth'
-import { canAccessAdmin, canAccessDashboard, clearAuth, getStoredUser } from '@/auth'
+import { canAccessDashboard, clearAuth, getStoredUser } from '@/auth'
 import type { UserProfile } from '@/api/modules/auth'
 import { TOAST_EVENT, type ToastPayload } from '@/toast'
 
@@ -62,6 +62,8 @@ export default function App() {
     })
   }
 
+  const toastType = toast?.type || 'error'
+
   return (
     <main className={sidebarCollapsed ? 'page sidebar-collapsed' : 'page'}>
       <header className="topbar">
@@ -96,21 +98,22 @@ export default function App() {
           <NavLink to="/" end>
             首页
           </NavLink>
-          <NavLink to="/about">社团介绍</NavLink>
           <NavLink to="/departments">部门展示</NavLink>
           <NavLink to="/leaders">重要成员</NavLink>
           <NavLink to="/activities">活动</NavLink>
           <NavLink to="/coupons">优惠券</NavLink>
-          {user && <NavLink to="/my-activities">我的活动</NavLink>}
-          {user && <NavLink to="/my-coupons">我的券包</NavLink>}
-          {canAccessAdmin(user) && <NavLink to="/admin">后台</NavLink>}
+          {user && <NavLink to="/my">我的</NavLink>}
           {canAccessDashboard(user) && <NavLink to="/dashboard">数据面板</NavLink>}
         </nav>
       </aside>
       <Outlet />
       {toast && (
-        <div className={`toast toast-${toast.type || 'error'}`} role="alert">
-          <span>{toast.message}</span>
+        <div className={`toast toast-${toastType}`} role="alert">
+          <span className="toast-mark" aria-hidden="true" />
+          <div className="toast-copy">
+            <strong>{toastType === 'success' ? '操作成功' : '处理失败'}</strong>
+            <span>{toast.message}</span>
+          </div>
           <button aria-label="关闭提示" onClick={() => setToast(null)} type="button">
             x
           </button>

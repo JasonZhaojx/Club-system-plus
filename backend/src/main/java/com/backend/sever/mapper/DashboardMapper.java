@@ -16,6 +16,7 @@ public interface DashboardMapper {
 
     long countMembers();
 
+
     long countDepartments();
 
     long countActivities();

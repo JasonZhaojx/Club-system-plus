@@ -1,4 +1,5 @@
 import { useEffect, useMemo, useState, type UIEvent } from 'react'
+import { Link } from 'react-router-dom'
 import {
   listMyCouponRedemptions,
   listMyCoupons,
@@ -7,6 +8,7 @@ import {
   type UserCoupon,
   type UserCouponStatus,
 } from '@/api/modules/coupon'
+import PageLoading from '@/components/PageLoading'
 import { getErrorMessage, showToast } from '@/toast'
 
 const statusNames: Record<UserCouponStatus, string> = {
@@ -112,9 +114,12 @@ export default function MyCouponsView() {
           <h1>我的券包</h1>
           <p>查看已领取优惠券、使用状态和核销记录。</p>
         </div>
+        <Link className="back-button" to="/my">
+          返回我的
+        </Link>
       </div>
 
-      {loading && <div className="empty-state">正在加载券包...</div>}
+      {loading && <PageLoading className="inline-loading-section" />}
       {!loading && error && <div className="empty-state">{error}</div>}
       {!loading && !error && !coupons.length && <div className="empty-state">暂无优惠券</div>}
 

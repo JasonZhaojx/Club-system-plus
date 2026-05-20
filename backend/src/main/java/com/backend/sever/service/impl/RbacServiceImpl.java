@@ -1,5 +1,6 @@
 package com.backend.sever.service.impl;
 
+import com.backend.common.auth.AuthorizationCache;
 import com.backend.pojo.dto.AssignRolePermissionDTO;
 import com.backend.pojo.dto.AssignUserRoleDTO;
 import com.backend.pojo.vo.PermissionVO;
@@ -10,11 +11,14 @@ import com.backend.sever.mapper.PermissionMapper;
 import com.backend.sever.mapper.RoleMapper;
 import com.backend.sever.mapper.UserMapper;
 import com.backend.sever.service.RbacService;
+import com.github.benmanes.caffeine.cache.Cache;
+import com.github.benmanes.caffeine.cache.Caffeine;
 import org.springframework.stereotype.Service;
 import org.springframework.transaction.annotation.Transactional;
 import org.springframework.util.CollectionUtils;
 import org.springframework.util.StringUtils;
 
+import java.time.Duration;
 import java.util.List;
 
 @Service
@@ -22,25 +26,38 @@ public class RbacServiceImpl implements RbacService {
     private final RoleMapper roleMapper;
     private final PermissionMapper permissionMapper;
     private final UserMapper userMapper;
+    private final AuthorizationCache authorizationCache;
+    private final Cache<String, List<RoleVO>> roleListCache;
+    private final Cache<String, List<PermissionVO>> permissionListCache;
 
     public RbacServiceImpl(
             RoleMapper roleMapper,
             PermissionMapper permissionMapper,
-            UserMapper userMapper
+            UserMapper userMapper,
+            AuthorizationCache authorizationCache
     ) {
         this.roleMapper = roleMapper;
         this.permissionMapper = permissionMapper;
         this.userMapper = userMapper;
+        this.authorizationCache = authorizationCache;
+        this.roleListCache = Caffeine.newBuilder()
+                .maximumSize(10)
+                .expireAfterWrite(Duration.ofMinutes(10))
+                .build();
+        this.permissionListCache = Caffeine.newBuilder()
+                .maximumSize(10)
+                .expireAfterWrite(Duration.ofMinutes(10))
+                .build();
     }
 
     @Override
     public List<RoleVO> listRoles() {
-        return roleMapper.selectList(null).stream().map(RoleVO::from).toList();
+        return roleListCache.get("all", ignored -> roleMapper.selectList(null).stream().map(RoleVO::from).toList());
     }
 
     @Override
     public List<PermissionVO> listPermissions() {
-        return permissionMapper.selectList(null).stream().map(PermissionVO::from).toList();
+        return permissionListCache.get("all", ignored -> permissionMapper.selectList(null).stream().map(PermissionVO::from).toList());
     }
 
     @Override
@@ -58,6 +75,7 @@ public class RbacServiceImpl implements RbacService {
                 .map(String::trim)
                 .distinct()
                 .forEach(roleCode -> roleMapper.insertUserRoleByCode(request.getUserId(), roleCode));
+        authorizationCache.evictUser(request.getUserId());
     }
 
     @Override
@@ -75,5 +93,6 @@ public class RbacServiceImpl implements RbacService {
                 .map(String::trim)
                 .distinct()
                 .forEach(permissionCode -> permissionMapper.insertRolePermissionByCode(roleCode, permissionCode));
+        authorizationCache.evictAll();
     }
 }

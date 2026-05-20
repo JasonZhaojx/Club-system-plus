@@ -13,9 +13,11 @@ import LeadersView from '@/views/LeadersView'
 import LoginView from '@/views/LoginView'
 import MyActivitiesView from '@/views/MyActivitiesView'
 import MyCouponsView from '@/views/MyCouponsView'
+import MyView from '@/views/MyView'
 import ProfileView from '@/views/ProfileView'
 import { getCurrentUser, type UserProfile } from '@/api/modules/auth'
 import { canAccessAdmin, canAccessDashboard, getAccessToken, saveUser } from '@/auth'
+import PageLoading from '@/components/PageLoading'
 
 function RequireAuth({
   children,
@@ -64,7 +66,7 @@ function RequireAuth({
     return <Navigate to={`/login?redirect=${encodeURIComponent(redirect)}`} replace />
   }
   if (loading) {
-    return <section className="content">正在验证权限...</section>
+    return <PageLoading />
   }
   if (!user || !authorized) {
     return <Navigate to="/" replace />
@@ -127,6 +129,14 @@ const router = createBrowserRouter([
         element: (
           <RequireLogin redirect="/profile">
             <ProfileView />
+          </RequireLogin>
+        ),
+      },
+      {
+        path: 'my',
+        element: (
+          <RequireLogin redirect="/my">
+            <MyView />
           </RequireLogin>
         ),
       },

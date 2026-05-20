@@ -1,4 +1,5 @@
 import { FormEvent, useEffect, useMemo, useState } from 'react'
+import { Link } from 'react-router-dom'
 import { getCurrentUser, type UserProfile } from '@/api/modules/auth'
 import {
   appointDepartmentLeader,
@@ -20,6 +21,7 @@ import {
 } from '@/api/modules/organization'
 import { assignUserRoles, listRoles, type Role } from '@/api/modules/rbac'
 import { hasPermission } from '@/auth'
+import PageLoading from '@/components/PageLoading'
 import { getErrorMessage, showToast } from '@/toast'
 import ActivityAdminPanel from './ActivityAdminPanel'
 import CouponAdminPanel from './CouponAdminPanel'
@@ -303,7 +305,7 @@ export default function AdminView() {
   }
 
   if (loading) {
-    return <section className="content">正在加载后台数据...</section>
+    return <PageLoading />
   }
 
   return (
@@ -314,6 +316,9 @@ export default function AdminView() {
           <h1>管理后台</h1>
           {user && <p>当前用户：{user.nickname || user.username}</p>}
         </div>
+        <Link className="back-button" to="/my">
+          返回我的
+        </Link>
       </div>
 
       <div className="admin-tabs">

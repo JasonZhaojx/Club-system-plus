@@ -473,3 +473,159 @@ SQL 保留周期：
 - `stock` key 在优惠券预加载时写入 TTL。
 - `users` key 可能在用户首次抢券时才创建，因此 Lua 抢券脚本每次会同步给 `stock/users` 设置 TTL。
 - `coupon:claim:queue` 暂不设置短 TTL，因为它是待落库队列，应由 worker 消费清空，不能因为过期导致未落库任务丢失。
+
+## 2026-05-19 Caffeine 本地缓存与二级缓存改造
+
+### 本次改动范围
+
+本次后端缓存改造分为两部分：
+
+- 引入 Caffeine 本地缓存，用于降低高频权限查询和稳定元数据查询对 MySQL 的压力。
+- 在公开活动模块加入 `Caffeine -> Redis -> MySQL` 二级缓存链路，并重点处理写操作后的缓存失效时机。
+
+实现文件：
+
+- `backend/pom.xml`
+- `backend/src/main/java/com/backend/common/auth/AuthorizationCache.java`
+- `backend/src/main/java/com/backend/common/auth/JwtAuthenticationFilter.java`
+- `backend/src/main/java/com/backend/sever/service/impl/RbacServiceImpl.java`
+- `backend/src/main/java/com/backend/sever/service/impl/OrganizationServiceImpl.java`
+- `backend/src/main/java/com/backend/sever/service/impl/ActivityServiceImpl.java`
+
+### 权限缓存：userId -> roles / permissions
+
+原实现中，`JwtAuthenticationFilter` 每次请求解析 JWT 后都会通过 `RoleMapper` 和 `PermissionMapper` 查询数据库，获取当前用户角色和权限码。该逻辑位于所有受保护接口的入口链路上，请求频率高，但用户权限变化频率低，因此适合加入本地缓存。
+
+当前实现：
+
+- 新增 `AuthorizationCache`。
+- 缓存 key：`userId`。
+- 缓存 value：`AuthorizationSnapshot(roles, permissions)`。
+- TTL：3 分钟。
+- 最大容量：20000 个用户。
+- `JwtAuthenticationFilter` 不再直接访问 mapper，而是通过 `AuthorizationCache.get(userId)` 获取权限快照。
+
+策略选择：
+
+- 选择 Caffeine，而不是 Redis，原因是鉴权链路发生在每个请求入口，本地缓存延迟更低，不需要额外网络往返。
+- 当前项目主要是单体 Spring Boot 部署，本地缓存能直接解决重复查库问题。
+- TTL 设置为 3 分钟，是在“权限变更及时性”和“减少数据库压力”之间取平衡。
+- 如果后期多实例部署，可以继续保留 Caffeine，并通过 Redis Pub/Sub、MQ 或短 TTL 控制多实例缓存一致性。
+
+### 权限缓存失效策略
+
+权限缓存不能只依赖 TTL，否则管理员刚调整用户角色后，用户可能在 TTL 窗口内继续使用旧权限。因此本次在权限写路径上增加主动失效：
+
+- `RbacServiceImpl.assignUserRoles`：用户角色被重新分配后，失效该用户的权限快照。
+- `RbacServiceImpl.assignRolePermissions`：角色权限被重新分配后，失效所有用户权限快照。
+- `OrganizationServiceImpl.assignMemberToDepartment`：用户加入部门并升级为社团成员后，失效该用户权限快照。
+- `OrganizationServiceImpl.updateMemberStatus`：成员启用/停用导致角色变化后，失效该用户权限快照。
+- `OrganizationServiceImpl.appointDepartmentLeader`：任命部门负责人后，失效该用户权限快照。
+- `OrganizationServiceImpl.removeDepartmentLeader`：移除部门负责人后，失效该用户权限快照。
+
+失效时机：
+
+- 如果当前存在 Spring 事务，则注册 `TransactionSynchronization.afterCommit`，等事务提交成功后再清缓存。
+- 如果当前没有事务，则立即清缓存。
+
+这样做的原因：
+
+- 如果在事务提交前删除缓存，并发请求可能立刻读取数据库旧值，然后重新写入 Caffeine，导致旧权限在缓存中继续存在。
+- afterCommit 失效可以避免“先删缓存、事务未提交、旧数据回填缓存”的问题。
+- 如果事务回滚，则不会误删缓存，避免无意义的缓存抖动。
+
+### 角色列表与权限列表缓存
+
+`RbacServiceImpl.listRoles` 和 `RbacServiceImpl.listPermissions` 也加入了 Caffeine：
+
+- 角色列表缓存 key：`all`。
+- 权限列表缓存 key：`all`。
+- TTL：10 分钟。
+- 最大容量：10。
+
+策略选择：
+
+- 当前系统没有开放创建/删除角色、权限定义的接口，角色和权限码属于低频变化的系统元数据。
+- 因此这里采用短 TTL 自动刷新即可，不需要复杂主动失效。
+- 用户角色绑定和角色权限绑定变化不会改变角色/权限定义本身，只会影响用户鉴权快照，因此只需要失效 `AuthorizationCache`。
+
+### 公开活动二级缓存
+
+公开活动列表和公开活动详情原本已有 Redis 热点缓存。本次在 Redis 前增加 Caffeine，形成二级缓存：
+
+```text
+Caffeine 本地缓存
+  -> Redis 分布式缓存
+  -> MySQL
+```
+
+当前缓存对象：
+
+- 公开活动列表：`listPublicActivities(keyword, category, sort, page, size)`
+- 公开活动详情：`getPublicActivity(activityId)`
+
+缓存策略：
+
+- 活动列表 L1 Caffeine TTL：20 秒。
+- 活动列表 L2 Redis TTL：30 秒。
+- 活动详情 L1 Caffeine TTL：45 秒。
+- 活动详情 L2 Redis TTL：60 秒。
+- Caffeine 命中后直接返回。
+- Caffeine 未命中但 Redis 命中时，将 Redis 数据回填到 Caffeine。
+- Redis 未命中时查询 MySQL，并同时写入 Redis 和 Caffeine。
+
+策略选择：
+
+- 活动公开页属于读多写少场景，适合缓存。
+- 列表受筛选、排序、分页参数影响，key 数量可能较多，因此本地缓存 TTL 较短，最大容量限制为 1000。
+- 详情页 key 更稳定，且访问重复度更高，因此本地 TTL 稍长，最大容量限制为 5000。
+- Redis 继续作为跨实例共享缓存，Caffeine 作为单实例热点加速层。
+- Caffeine TTL 略短于 Redis TTL，降低本地旧数据停留时间，同时允许 Redis 承接二级命中。
+
+### 公开活动缓存失效策略
+
+活动写操作后会主动清理活动公开缓存：
+
+- 创建活动
+- 更新活动
+- 提交审核
+- 发布活动
+- 取消活动
+- 结束活动
+- 报名活动
+- 取消报名
+
+失效范围：
+
+- 本地 Caffeine 活动列表：全部清理。
+- 本地 Caffeine 活动详情：按 `activityId` 精确清理。
+- Redis 活动列表：按 `hot:activity:list:*` 清理。
+- Redis 活动详情：按 `hot:activity:detail:{activityId}` 精确清理。
+
+失效时机：
+
+- 与权限缓存相同，活动缓存失效也采用 `afterCommit`。
+- 事务提交成功后再清理 Caffeine 和 Redis。
+- 如果事务回滚，不清理缓存。
+
+这样做的原因：
+
+- 活动更新、报名、取消报名都会影响公开列表或详情中的状态、人数、容量等数据。
+- 写库成功后删除缓存，下一次读请求会重新从 MySQL 加载最新数据。
+- 采用 afterCommit 可以避免事务未提交时并发请求把旧活动数据重新写入缓存。
+
+### 当前方案边界
+
+当前二级缓存方案适合单体或少量实例部署，但仍有边界：
+
+- Caffeine 是进程内缓存，多实例之间不会自动同步。
+- 当前活动列表 Redis 清理使用 `keys hot:activity:list:*`，实现简单，但大规模生产环境应改为维护 key 集合、使用 scan，或通过缓存版本号规避全量 key 扫描。
+- 角色权限变更时 `evictAll` 会清空所有用户权限快照，简单可靠，但角色权限频繁变更时会带来缓存抖动。当前系统角色权限变更属于低频管理操作，因此可以接受。
+
+### 后续可升级方向
+
+- 将 Caffeine 配置抽到 `application.yml`，支持按环境调整 TTL 和容量。
+- 为 Caffeine 增加命中率、加载次数、淘汰次数等 Micrometer 指标。
+- 多实例部署时，引入 Redis Pub/Sub 或 RabbitMQ 广播缓存失效事件。
+- 将活动列表缓存从 `keys` 删除升级为缓存版本号策略，例如 `hot:activity:list:v{version}:...`。
+- 对 dashboard overview 也可以增加 Caffeine L1，但需要继续保持“最近日志实时查询”的策略，避免用户误以为日志不更新。
