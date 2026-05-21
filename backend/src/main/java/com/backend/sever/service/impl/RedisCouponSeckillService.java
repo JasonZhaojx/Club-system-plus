@@ -13,7 +13,6 @@ import java.util.concurrent.TimeUnit;
 
 @Service
 public class RedisCouponSeckillService implements CouponSeckillService {
-    public static final String CLAIM_QUEUE_KEY = "coupon:claim:queue";
     private static final String STOCK_KEY_PREFIX = "coupon:batch:";
     private static final String STOCK_KEY_SUFFIX = ":stock";
     private static final String USER_KEY_SUFFIX = ":users";
@@ -21,7 +20,7 @@ public class RedisCouponSeckillService implements CouponSeckillService {
     private static final long MIN_TTL_SECONDS = 60;
 
     private static final String CLAIM_SCRIPT = """
-            local ttl = tonumber(ARGV[3])
+            local ttl = tonumber(ARGV[2])
             if redis.call('sismember', KEYS[2], ARGV[1]) == 1 then
                 redis.call('expire', KEYS[1], ttl)
                 redis.call('expire', KEYS[2], ttl)
@@ -35,7 +34,6 @@ public class RedisCouponSeckillService implements CouponSeckillService {
             end
             redis.call('decr', KEYS[1])
             redis.call('sadd', KEYS[2], ARGV[1])
-            redis.call('rpush', KEYS[3], ARGV[2])
             redis.call('expire', KEYS[1], ttl)
             redis.call('expire', KEYS[2], ttl)
             return 0
@@ -59,12 +57,10 @@ public class RedisCouponSeckillService implements CouponSeckillService {
 
     @Override
     public ClaimResult tryClaim(CouponBatch batch, Long userId) {
-        String payload = batch.getId() + ":" + userId;
         Long result = redisTemplate.execute(
                 claimScript,
-                List.of(stockKey(batch.getId()), userKey(batch.getId()), CLAIM_QUEUE_KEY),
+                List.of(stockKey(batch.getId()), userKey(batch.getId())),
                 String.valueOf(userId),
-                payload,
                 String.valueOf(ttlSeconds(batch))
         );
         if (result == null) {

@@ -36,19 +36,22 @@ public class CouponServiceImpl implements com.backend.sever.service.CouponServic
     private final CouponRedemptionMapper couponRedemptionMapper;
     private final CouponClaimTaskMapper couponClaimTaskMapper;
     private final CouponSeckillService couponSeckillService;
+    private final CouponClaimMessageProducer couponClaimMessageProducer;
 
     public CouponServiceImpl(
             CouponBatchMapper couponBatchMapper,
             UserCouponMapper userCouponMapper,
             CouponRedemptionMapper couponRedemptionMapper,
             CouponClaimTaskMapper couponClaimTaskMapper,
-            CouponSeckillService couponSeckillService
+            CouponSeckillService couponSeckillService,
+            CouponClaimMessageProducer couponClaimMessageProducer
     ) {
         this.couponBatchMapper = couponBatchMapper;
         this.userCouponMapper = userCouponMapper;
         this.couponRedemptionMapper = couponRedemptionMapper;
         this.couponClaimTaskMapper = couponClaimTaskMapper;
         this.couponSeckillService = couponSeckillService;
+        this.couponClaimMessageProducer = couponClaimMessageProducer;
     }
 
     @Override
@@ -125,7 +128,8 @@ public class CouponServiceImpl implements com.backend.sever.service.CouponServic
         if (!claimResult.success()) {
             throw new BusinessException(ErrorCode.INTERNAL_ERROR, "Coupon claim queue is unavailable");
         }
-        createClaimTaskIfAbsent(batchId, principal.userId());
+        CouponClaimTask task = createClaimTaskIfAbsent(batchId, principal.userId());
+        couponClaimMessageProducer.sendAfterCommit(task.getId());
         return new UserCouponVO(
                 null,
                 batch.getId(),
@@ -265,7 +269,7 @@ public class CouponServiceImpl implements com.backend.sever.service.CouponServic
         return allowedRoleCodes.stream().anyMatch(role -> roleSatisfies(userRoles, role));
     }
 
-    private void createClaimTaskIfAbsent(Long batchId, Long userId) {
+    private CouponClaimTask createClaimTaskIfAbsent(Long batchId, Long userId) {
         CouponClaimTask task = new CouponClaimTask();
         task.setBatchId(batchId);
         task.setUserId(userId);
@@ -274,7 +278,9 @@ public class CouponServiceImpl implements com.backend.sever.service.CouponServic
             couponClaimTaskMapper.insert(task);
         } catch (DuplicateKeyException ignored) {
             // The Redis user set already prevents duplicate claims. The DB unique key is the durable fallback.
+            task = couponClaimTaskMapper.selectByBatchAndUser(batchId, userId);
         }
+        return task;
     }
 
     private boolean roleSatisfies(List<String> roles, String requiredRoleCode) {

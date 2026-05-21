@@ -629,3 +629,104 @@ Caffeine 本地缓存
 - 多实例部署时，引入 Redis Pub/Sub 或 RabbitMQ 广播缓存失效事件。
 - 将活动列表缓存从 `keys` 删除升级为缓存版本号策略，例如 `hot:activity:list:v{version}:...`。
 - 对 dashboard overview 也可以增加 Caffeine L1，但需要继续保持“最近日志实时查询”的策略，避免用户误以为日志不更新。
+
+## 2026-05-20：优惠券领取队列从 Redis List 迁移到 RabbitMQ
+
+### 修改内容
+
+本次将优惠券领取链路中的 Redis List 异步队列替换为 RabbitMQ：
+
+- 新增 `spring-boot-starter-amqp` 依赖。
+- 新增 RabbitMQ 配置：
+  - exchange：`club.coupon.exchange`
+  - queue：`club.coupon.claim.queue`
+  - routing key：`coupon.claim`
+- 新增 `RabbitMqConfig`，声明 durable direct exchange、durable queue 和 binding。
+- 新增 `CouponClaimMessageProducer`，负责投递优惠券领取任务。
+- `RedisCouponSeckillService` 保留 Redis Lua 的库存预扣和用户去重，但移除 `rpush coupon:claim:queue`。
+- `CouponServiceImpl.claimCoupon` 在 Redis 预扣成功后创建 `coupon_claim_task`，并在事务提交后投递 RabbitMQ 消息。
+- `CouponClaimWorker` 从定时 `leftPop Redis List` 改为 `@RabbitListener` 消费 RabbitMQ 消息。
+- 保留 `compensateFailedTasks` 定时补偿任务，用于处理 RabbitMQ 投递失败、消费失败或服务重启后遗留的 `PENDING/FAILED` 任务。
+
+### 新链路
+
+```text
+用户领取优惠券
+  -> Redis Lua 原子判断库存和重复领取
+  -> Redis 预扣库存、记录用户已占位
+  -> MySQL 创建 coupon_claim_task
+  -> 事务提交后发送 RabbitMQ 消息 taskId
+  -> RabbitMQ Consumer 根据 taskId 查询任务
+  -> 插入 user_coupon
+  -> 更新 coupon_batch.claimed_count
+  -> 更新 coupon_claim_task 为 DONE
+```
+
+### 策略抉择
+
+没有把 Redis 整体替换为 RabbitMQ，而是只替换 Redis List 队列部分：
+
+- Redis 继续负责高并发入口的原子预扣库存和用户去重。
+- RabbitMQ 负责异步削峰、消费者解耦和更标准的消息队列能力。
+- MySQL `coupon_claim_task` 表作为可靠任务表，兜底消息投递失败、消费失败和服务重启。
+- `user_coupon` 的唯一索引继续作为最终防重复领取的数据库兜底。
+
+这样做的原因：
+
+- Redis Lua 更适合在高并发入口完成快速原子判断，避免每个请求都直接打 MySQL。
+- Redis List 缺少标准 MQ 的消费确认、重试、死信等能力，不适合作为长期可靠队列。
+- RabbitMQ 比 Redis List 更适合承载异步任务投递和消费解耦。
+- 核心一致性不能只依赖 MQ，仍需要数据库唯一索引、任务表和补偿机制兜底。
+
+### 消费幂等与补偿
+
+`CouponClaimWorker` 消费 RabbitMQ 消息时只接收 `taskId`：
+
+- 根据 `taskId` 查询 `coupon_claim_task`。
+- 如果用户券已经存在，则直接将任务标记为 `DONE`。
+- 插入 `user_coupon` 时捕获唯一键冲突，避免重复消费导致重复发券。
+- 插入用户券成功后再更新批次已领取数，避免“先加计数、后插入失败”造成统计偏大。
+- 如果处理失败，将任务标记为 `FAILED` 并增加重试次数。
+- 定时补偿任务继续扫描 `PENDING/FAILED`，最多重试 10 次。
+
+### 当前边界
+
+- 当前尚未配置 RabbitMQ publisher confirm 和 dead-letter queue，可靠性主要由 `coupon_claim_task` 任务表和补偿任务兜底。
+- 如果 RabbitMQ 暂时不可用，任务仍会留在 MySQL 中，补偿任务可以继续处理；但异步削峰能力会下降。
+- 后续可以增加死信队列、消费重试间隔、失败告警和消息投递确认。
+
+## 2026-05-20：新增 Docker Compose 一键部署
+
+### 修改内容
+
+本次新增容器化部署配置：
+
+- 根目录新增 `docker-compose.yml`。
+- 后端新增 `backend/Dockerfile` 和 `backend/.dockerignore`。
+- 后端新增 `application-docker.yml`，容器内通过服务名连接 MySQL、Redis、RabbitMQ。
+- 前端新增 `frontend/Dockerfile`、`frontend/.dockerignore` 和 `frontend/nginx.conf`。
+- README 增加 Docker Compose 启动、查看日志、停止和清空数据卷说明。
+
+### Compose 服务
+
+```text
+mysql      MySQL 8.4，业务库 club_system_plus
+redis      Redis 7.4，缓存、限流和秒杀预扣库存
+rabbitmq   RabbitMQ 4 Management，优惠券领取异步队列
+backend    Spring Boot 后端，暴露 8080
+frontend   Nginx 托管前端静态资源，暴露 5173
+```
+
+### 策略抉择
+
+- 前端容器采用 Nginx 托管构建后的静态资源，而不是在容器里跑 Vite dev server。
+- Nginx 将 `/api/**` 反向代理到 `backend:8080/api/**`，浏览器仍然只访问同源 `/api`。
+- 后端单独提供 `docker` profile，避免容器环境继续连接本机 `localhost`。
+- MySQL、Redis、RabbitMQ 都配置 healthcheck，后端等待基础设施健康后再启动。
+- MySQL、Redis、RabbitMQ 使用 named volume 保存数据，避免容器重建后数据丢失。
+
+### 当前边界
+
+- 当前 Compose 面向本地演示和简历项目部署，不包含生产级 HTTPS、域名、镜像仓库和 CI/CD。
+- MySQL root 密码仍写在示例配置中，真实生产环境应改为 `.env` 或密钥管理。
+- 后续如果加入 MinIO，可以继续在 Compose 中增加 `minio` 服务，并将活动图片上传地址切换到对象存储。

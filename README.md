@@ -132,6 +132,69 @@ http://localhost:5173
 
 前端通过 Vite 代理访问后端，浏览器请求 `/api/**` 时会转发到 `http://localhost:8080/api/**`。
 
+## Docker Compose 部署
+
+仓库根目录已提供 `docker-compose.yml`，会同时启动：
+
+- MySQL 8.4：`localhost:3306`
+- Redis 7.4：`localhost:6379`
+- RabbitMQ 4 Management：`localhost:5672`，管理台 `http://localhost:15672`
+- 后端 Spring Boot：`http://localhost:8080/api`
+- 前端 Nginx：`http://localhost:5173`
+
+首次启动前先创建 `.env`：
+
+```bash
+cp .env.example .env
+```
+
+Windows PowerShell 可使用：
+
+```powershell
+Copy-Item .env.example .env
+```
+
+然后修改 `.env` 中的真实密码和 `APP_JWT_SECRET`。`.env` 已加入 `.gitignore`，不要提交到仓库。
+
+启动：
+
+```bash
+docker compose up -d --build
+```
+
+查看日志：
+
+```bash
+docker compose logs -f backend
+docker compose logs -f frontend
+```
+
+停止：
+
+```bash
+docker compose down
+```
+
+如果需要清空 MySQL、Redis、RabbitMQ 数据卷：
+
+```bash
+docker compose down -v
+```
+
+默认账号：
+
+```text
+RabbitMQ: 使用 .env 中的 RABBITMQ_USERNAME / RABBITMQ_PASSWORD
+系统 root 用户: root / Root@123456
+```
+
+容器部署使用 `application-docker.yml`：
+
+- MySQL 连接到 `mysql:3306`
+- Redis 连接到 `redis:6379`
+- RabbitMQ 连接到 `rabbitmq:5672`
+- 前端 Nginx 将 `/api/**` 反向代理到 `backend:8080/api/**`
+
 ## 用户角色设计
 
 系统推荐使用 RBAC 权限模型：用户拥有角色，角色绑定权限；同时社团成员还需要绑定部门。

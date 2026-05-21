@@ -28,9 +28,13 @@ springdoc:
 
 app:
   jwt:
-    secret: change-this-development-secret-at-least-32-chars
+    secret: ${APP_JWT_SECRET:change-this-development-secret-at-least-32-chars}
     expiration-seconds: 86400
   rate-limit:
     enabled: true
     capacity: 120
     refill-per-second: 60
+  rabbitmq:
+    coupon-claim-exchange: club.coupon.exchange
+    coupon-claim-queue: club.coupon.claim.queue
+    coupon-claim-routing-key: coupon.claim
