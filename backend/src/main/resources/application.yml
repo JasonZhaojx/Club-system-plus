@@ -38,3 +38,33 @@ app:
     coupon-claim-exchange: club.coupon.exchange
     coupon-claim-queue: club.coupon.claim.queue
     coupon-claim-routing-key: coupon.claim
+  business-rate-limit:
+    enabled: true
+    coupon-claim-limit: 1
+    coupon-claim-window-seconds: 3
+    activity-register-limit: 1
+    activity-register-window-seconds: 3
+    email-cooldown-limit: 1
+    email-cooldown-window-seconds: 60
+    email-hourly-limit: 5
+    email-hourly-window-seconds: 3600
+    email-ip-hourly-limit: 20
+    email-ip-hourly-window-seconds: 3600
+  sentinel:
+    enabled: true
+    coupon-claim-qps: 80
+    coupon-claim-hot-batch-qps: 30
+    activity-register-qps: 80
+    activity-register-hot-activity-qps: 30
+    email-code-qps: 20
+    email-code-hot-email-qps: 3
+    exception-ratio: 0.5
+    min-request-amount: 20
+    stat-interval-ms: 10000
+    time-window-seconds: 10
+  email-code:
+    secret: ${APP_EMAIL_CODE_SECRET:change-this-email-code-secret}
+    ttl-seconds: 600
+    max-verify-attempts: 5
+    from: ${MAIL_FROM:}
+    subject: Club System Plus password reset code

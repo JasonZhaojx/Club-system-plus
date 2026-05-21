@@ -14,6 +14,8 @@ import java.util.List;
 public interface UserMapper extends BaseMapper<User> {
     User selectByUsername(@Param("username") String username);
 
+    User selectByEmail(@Param("email") String email);
+
     int countByUsername(@Param("username") String username);
 
     int updateStatus(@Param("id") Long id, @Param("status") UserStatus status);
@@ -21,6 +23,8 @@ public interface UserMapper extends BaseMapper<User> {
     int updateProfile(@Param("id") Long id, @Param("nickname") String nickname, @Param("email") String email);
 
     int updatePassword(@Param("id") Long id, @Param("passwordHash") String passwordHash);
+
+    int updatePasswordByEmail(@Param("email") String email, @Param("passwordHash") String passwordHash);
 
     UserMembershipVO selectMembershipByUserId(@Param("userId") Long userId);
 

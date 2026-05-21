@@ -59,10 +59,16 @@ services:
     environment:
       SPRING_PROFILES_ACTIVE: docker
       APP_JWT_SECRET: ${APP_JWT_SECRET}
+      APP_EMAIL_CODE_SECRET: ${APP_EMAIL_CODE_SECRET}
       MYSQL_USERNAME: ${MYSQL_USERNAME:-root}
       MYSQL_PASSWORD: ${MYSQL_PASSWORD}
       RABBITMQ_USERNAME: ${RABBITMQ_USERNAME:-guest}
       RABBITMQ_PASSWORD: ${RABBITMQ_PASSWORD:-guest}
+      MAIL_HOST: ${MAIL_HOST:-smtp.example.com}
+      MAIL_PORT: ${MAIL_PORT:-587}
+      MAIL_USERNAME: ${MAIL_USERNAME:-}
+      MAIL_PASSWORD: ${MAIL_PASSWORD:-}
+      MAIL_FROM: ${MAIL_FROM:-}
     depends_on:
       mysql:
         condition: service_healthy

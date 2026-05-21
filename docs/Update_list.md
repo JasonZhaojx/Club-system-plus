@@ -730,3 +730,171 @@ frontend   Nginx 托管前端静态资源，暴露 5173
 - 当前 Compose 面向本地演示和简历项目部署，不包含生产级 HTTPS、域名、镜像仓库和 CI/CD。
 - MySQL root 密码仍写在示例配置中，真实生产环境应改为 `.env` 或密钥管理。
 - 后续如果加入 MinIO，可以继续在 Compose 中增加 `minio` 服务，并将活动图片上传地址切换到对象存储。
+
+## 2026-05-21：Redis 业务限流、Sentinel 保护与邮箱找回密码
+
+### Redis 业务限流
+
+本次在全局 `TokenBucketRateLimitFilter` 之外，新增 `BusinessRateLimiter`，用于处理需要业务身份或持久窗口的限流。
+
+当前接入点：
+
+- 优惠券领取：`CouponServiceImpl.claimCoupon`
+- 活动报名：`ActivityServiceImpl.registerActivity`
+- 找回密码验证码发送：`AuthServiceImpl.sendPasswordResetCode`
+
+Redis key 设计：
+
+```text
+rate:biz:coupon:claim:{userId}:{batchId}
+rate:biz:activity:register:{userId}:{activityId}
+rate:biz:email:password-reset:cooldown:{emailHash}
+rate:biz:email:password-reset:hour:{emailHash}
+rate:biz:email:password-reset:ip:{ipHash}
+```
+
+默认策略：
+
+- 同一用户同一优惠券批次：3 秒 1 次。
+- 同一用户同一活动：3 秒 1 次。
+- 同一邮箱找回密码验证码：60 秒 1 次，1 小时最多 5 次。
+- 同一 IP 找回密码验证码：1 小时最多 20 次。
+
+策略权衡：
+
+- 全局 IP 限流适合保护入口，但不适合精确限制同一用户重复提交。
+- 业务限流按 `userId / email / IP` 建 key，能覆盖重复点击、脚本刷接口和验证码刷邮箱。
+- Redis 异常时当前选择放行，原因是限流是保护层，不应在 Redis 短暂不可用时阻断核心业务。
+- 邮箱和 IP 都做 SHA-256 后进入 key，避免 Redis key 中直接暴露用户邮箱和 IP。
+
+实现文件：
+
+- `backend/src/main/java/com/backend/sever/config/BusinessRateLimitProperties.java`
+- `backend/src/main/java/com/backend/sever/service/BusinessRateLimiter.java`
+- `backend/src/main/java/com/backend/sever/service/impl/RedisBusinessRateLimiter.java`
+- `backend/src/main/resources/application.yml`
+
+### Sentinel 接口级限流、热点参数限流与熔断降级
+
+本次新增 Sentinel 保护层，资源名：
+
+```text
+coupon_claim
+activity_register
+email_password_reset_code
+```
+
+保护能力：
+
+- 接口级 QPS 限流：保护整个资源入口。
+- 热点参数限流：按 `batchId`、`activityId`、`email` 维度限制单个热点对象。
+- 熔断降级：按异常比例触发短时间熔断，避免故障接口被持续打满。
+
+默认规则：
+
+- `coupon_claim`：整体 80 QPS，单个 `batchId` 30 QPS。
+- `activity_register`：整体 80 QPS，单个 `activityId` 30 QPS。
+- `email_password_reset_code`：整体 20 QPS，单个 `email` 3 QPS。
+- 异常比例达到 50%，且统计窗口内请求量达到 20 后，熔断 10 秒。
+
+策略权衡：
+
+- 没有使用 `spring-cloud-starter-alibaba-sentinel`，而是直接接入 `sentinel-core` 和 `sentinel-parameter-flow-control`。
+- 原因是当前项目使用 Spring Boot 4，直接使用 Sentinel 核心 API 可以减少 Spring Cloud Alibaba 版本兼容风险。
+- Sentinel 当前作为单机保护层，适合简历项目、本地压测和单实例部署。
+- 如果未来多实例部署，需要评估 Sentinel 集群流控或继续用 Redis 承担跨实例业务限流。
+- Sentinel 负责“接口资源保护”，Redis 负责“业务状态窗口”，二者不是互相替代关系。
+
+实现文件：
+
+- `backend/pom.xml`
+- `backend/src/main/java/com/backend/sever/config/SentinelProtectionProperties.java`
+- `backend/src/main/java/com/backend/sever/config/SentinelProtectionConfig.java`
+- `backend/src/main/java/com/backend/sever/config/SentinelResourceNames.java`
+- `backend/src/main/java/com/backend/sever/service/SentinelGuard.java`
+- `backend/src/main/java/com/backend/sever/service/impl/SentinelGuardImpl.java`
+
+### 邮箱验证码找回密码
+
+新增接口：
+
+```text
+POST /api/auth/password-reset/code
+POST /api/auth/password-reset/confirm
+```
+
+验证码发送流程：
+
+```text
+请求邮箱
+  -> Redis 业务限流
+  -> Sentinel 资源保护
+  -> 查询邮箱是否属于正常用户
+  -> 生成 6 位验证码
+  -> Redis 保存验证码哈希和错误次数，TTL 10 分钟
+  -> SMTP 发送邮件
+```
+
+密码重置流程：
+
+```text
+邮箱 + 验证码 + 新密码
+  -> 校验验证码
+  -> 校验用户存在且状态正常
+  -> BCrypt 写入新密码哈希
+  -> 删除 Redis 验证码
+```
+
+Redis key：
+
+```text
+auth:email-code:password-reset:{emailHash}
+```
+
+存储内容：
+
+- `codeHash`：`SHA-256(email + code + APP_EMAIL_CODE_SECRET)`。
+- `failCount`：验证码错误次数。
+
+安全策略：
+
+- Redis 不保存明文验证码。
+- 验证码默认 10 分钟过期。
+- 验证失败默认最多 5 次，超过后删除验证码。
+- 发送接口不会告诉调用方邮箱是否存在，避免枚举账号。
+- SMTP 账号、密码、发件人和验证码哈希 secret 都通过环境变量配置。
+
+配置：
+
+```yaml
+spring:
+  mail:
+    host: ${MAIL_HOST:smtp.example.com}
+    port: ${MAIL_PORT:587}
+    username: ${MAIL_USERNAME:}
+    password: ${MAIL_PASSWORD:}
+
+app:
+  email-code:
+    secret: ${APP_EMAIL_CODE_SECRET:change-this-email-code-secret}
+    from: ${MAIL_FROM:${MAIL_USERNAME:}}
+```
+
+实现文件：
+
+- `backend/src/main/java/com/backend/pojo/dto/PasswordResetCodeDTO.java`
+- `backend/src/main/java/com/backend/pojo/dto/PasswordResetConfirmDTO.java`
+- `backend/src/main/java/com/backend/sever/service/EmailCodeService.java`
+- `backend/src/main/java/com/backend/sever/service/MailService.java`
+- `backend/src/main/java/com/backend/sever/service/impl/RedisEmailCodeService.java`
+- `backend/src/main/java/com/backend/sever/service/impl/SmtpMailService.java`
+- `backend/src/main/java/com/backend/sever/controller/AuthController.java`
+- `backend/src/main/resources/application-dev.yml`
+- `backend/src/main/resources/application-docker.yml`
+- `.env.example`
+
+### 后续注意
+
+- 当前用户表邮箱没有唯一约束，只新增了普通索引；如果产品要求邮箱必须唯一，应在注册和资料修改时增加唯一校验，再升级数据库唯一索引。
+- 修改密码后旧 JWT 仍可能在有效期内可用，后续应增加 `token_version` 或 `password_changed_at` 机制，让旧 token 失效。
+- SMTP 在本地开发环境需要真实 `MAIL_HOST / MAIL_USERNAME / MAIL_PASSWORD` 才能发送邮件。

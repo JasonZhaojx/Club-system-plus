@@ -15,6 +15,8 @@ public class DatabaseIndexInitializer implements ApplicationRunner {
 
     @Override
     public void run(ApplicationArguments args) {
+        addIndex("app_user", "idx_app_user_email",
+                "alter table app_user add index idx_app_user_email (email)");
         addIndex("club_member", "idx_club_member_department_status",
                 "alter table club_member add index idx_club_member_department_status (department_id, status)");
         addIndex("activity", "idx_activity_public_query",

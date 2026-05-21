@@ -3,17 +3,23 @@ package com.backend.sever.service.impl;
 import com.backend.common.auth.JwtProperties;
 import com.backend.common.auth.JwtService;
 import com.backend.pojo.dto.LoginDTO;
+import com.backend.pojo.dto.PasswordResetCodeDTO;
+import com.backend.pojo.dto.PasswordResetConfirmDTO;
 import com.backend.pojo.dto.RegisterDTO;
 import com.backend.pojo.entity.User;
 import com.backend.pojo.entity.UserStatus;
 import com.backend.pojo.vo.AuthTokenVO;
 import com.backend.pojo.vo.UserProfileVO;
+import com.backend.sever.config.SentinelResourceNames;
 import com.backend.sever.exception.BusinessException;
 import com.backend.sever.exception.ErrorCode;
 import com.backend.sever.mapper.UserMapper;
 import com.backend.sever.mapper.PermissionMapper;
 import com.backend.sever.mapper.RoleMapper;
 import com.backend.sever.service.AuthService;
+import com.backend.sever.service.BusinessRateLimiter;
+import com.backend.sever.service.EmailCodeService;
+import com.backend.sever.service.SentinelGuard;
 import org.springframework.security.crypto.password.PasswordEncoder;
 import org.springframework.stereotype.Service;
 import org.springframework.transaction.annotation.Transactional;
@@ -29,6 +35,9 @@ public class AuthServiceImpl implements AuthService {
     private final PasswordEncoder passwordEncoder;
     private final JwtService jwtService;
     private final JwtProperties jwtProperties;
+    private final BusinessRateLimiter businessRateLimiter;
+    private final EmailCodeService emailCodeService;
+    private final SentinelGuard sentinelGuard;
 
     public AuthServiceImpl(
             UserMapper userMapper,
@@ -36,7 +45,10 @@ public class AuthServiceImpl implements AuthService {
             PermissionMapper permissionMapper,
             PasswordEncoder passwordEncoder,
             JwtService jwtService,
-            JwtProperties jwtProperties
+            JwtProperties jwtProperties,
+            BusinessRateLimiter businessRateLimiter,
+            EmailCodeService emailCodeService,
+            SentinelGuard sentinelGuard
     ) {
         this.userMapper = userMapper;
         this.roleMapper = roleMapper;
@@ -44,6 +56,9 @@ public class AuthServiceImpl implements AuthService {
         this.passwordEncoder = passwordEncoder;
         this.jwtService = jwtService;
         this.jwtProperties = jwtProperties;
+        this.businessRateLimiter = businessRateLimiter;
+        this.emailCodeService = emailCodeService;
+        this.sentinelGuard = sentinelGuard;
     }
 
     @Override
@@ -75,6 +90,37 @@ public class AuthServiceImpl implements AuthService {
         }
         ensureActive(user);
         return buildToken(user);
+    }
+
+    @Override
+    public void sendPasswordResetCode(PasswordResetCodeDTO request, String ipAddress) {
+        String email = normalizeEmail(request == null ? null : request.getEmail());
+        businessRateLimiter.checkPasswordResetEmail(email, ipAddress);
+        try (SentinelGuard.GuardEntry guard = sentinelGuard.enter(SentinelResourceNames.EMAIL_PASSWORD_RESET_CODE, email)) {
+            try {
+                User user = userMapper.selectByEmail(email);
+                if (user != null && user.getStatus() == UserStatus.NORMAL) {
+                    emailCodeService.createAndSendPasswordResetCode(email);
+                }
+            } catch (RuntimeException exception) {
+                guard.trace(exception);
+                throw exception;
+            }
+        }
+    }
+
+    @Override
+    @Transactional
+    public void resetPassword(PasswordResetConfirmDTO request) {
+        String email = normalizeEmail(request == null ? null : request.getEmail());
+        validateResetPassword(request);
+        emailCodeService.verifyPasswordResetCode(email, request.getCode());
+        User user = userMapper.selectByEmail(email);
+        if (user == null) {
+            throw new BusinessException(ErrorCode.NOT_FOUND, "账号不存在");
+        }
+        ensureActive(user);
+        userMapper.updatePasswordByEmail(email, passwordEncoder.encode(request.getNewPassword()));
     }
 
     @Override
@@ -137,5 +183,27 @@ public class AuthServiceImpl implements AuthService {
                 || !StringUtils.hasText(request.getPassword())) {
             throw new BusinessException(ErrorCode.BAD_REQUEST, "用户名和密码不能为空");
         }
+    }
+
+    private void validateResetPassword(PasswordResetConfirmDTO request) {
+        if (request == null
+                || !StringUtils.hasText(request.getCode())
+                || !StringUtils.hasText(request.getNewPassword())) {
+            throw new BusinessException(ErrorCode.BAD_REQUEST, "邮箱、验证码和新密码不能为空");
+        }
+        if (request.getNewPassword().length() < 8) {
+            throw new BusinessException(ErrorCode.BAD_REQUEST, "密码长度不能少于 8 个字符");
+        }
+    }
+
+    private String normalizeEmail(String email) {
+        if (!StringUtils.hasText(email)) {
+            throw new BusinessException(ErrorCode.BAD_REQUEST, "邮箱不能为空");
+        }
+        String normalized = email.trim().toLowerCase();
+        if (normalized.length() > 120 || !normalized.matches("^[^@\\s]+@[^@\\s]+\\.[^@\\s]+$")) {
+            throw new BusinessException(ErrorCode.BAD_REQUEST, "邮箱格式不正确");
+        }
+        return normalized;
     }
 }

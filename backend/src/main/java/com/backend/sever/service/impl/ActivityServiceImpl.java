@@ -14,6 +14,9 @@ import com.backend.sever.exception.BusinessException;
 import com.backend.sever.exception.ErrorCode;
 import com.backend.sever.mapper.ActivityMapper;
 import com.backend.sever.mapper.ActivityRegistrationMapper;
+import com.backend.sever.service.BusinessRateLimiter;
+import com.backend.sever.service.SentinelGuard;
+import com.backend.sever.config.SentinelResourceNames;
 import com.fasterxml.jackson.core.JsonProcessingException;
 import com.fasterxml.jackson.core.type.TypeReference;
 import com.fasterxml.jackson.databind.ObjectMapper;
@@ -43,6 +46,8 @@ public class ActivityServiceImpl implements com.backend.sever.service.ActivitySe
     private final ActivityRegistrationMapper activityRegistrationMapper;
     private final StringRedisTemplate redisTemplate;
     private final ObjectMapper objectMapper;
+    private final BusinessRateLimiter businessRateLimiter;
+    private final SentinelGuard sentinelGuard;
     private final Cache<String, PageVO<ActivityVO>> publicListLocalCache;
     private final Cache<Long, ActivityVO> publicDetailLocalCache;
 
@@ -50,12 +55,16 @@ public class ActivityServiceImpl implements com.backend.sever.service.ActivitySe
             ActivityMapper activityMapper,
             ActivityRegistrationMapper activityRegistrationMapper,
             StringRedisTemplate redisTemplate,
-            ObjectMapper objectMapper
+            ObjectMapper objectMapper,
+            BusinessRateLimiter businessRateLimiter,
+            SentinelGuard sentinelGuard
     ) {
         this.activityMapper = activityMapper;
         this.activityRegistrationMapper = activityRegistrationMapper;
         this.redisTemplate = redisTemplate;
         this.objectMapper = objectMapper;
+        this.businessRateLimiter = businessRateLimiter;
+        this.sentinelGuard = sentinelGuard;
         this.publicListLocalCache = Caffeine.newBuilder()
                 .maximumSize(1_000)
                 .expireAfterWrite(Duration.ofSeconds(20))
@@ -196,6 +205,18 @@ public class ActivityServiceImpl implements com.backend.sever.service.ActivitySe
     @Override
     @Transactional
     public ActivityRegistrationVO registerActivity(UserPrincipal principal, Long activityId) {
+        businessRateLimiter.checkActivityRegister(principal.userId(), activityId);
+        try (SentinelGuard.GuardEntry guard = sentinelGuard.enter(SentinelResourceNames.ACTIVITY_REGISTER, activityId)) {
+            try {
+                return doRegisterActivity(principal, activityId);
+            } catch (RuntimeException exception) {
+                guard.trace(exception);
+                throw exception;
+            }
+        }
+    }
+
+    private ActivityRegistrationVO doRegisterActivity(UserPrincipal principal, Long activityId) {
         Activity activity = requireActivity(activityId);
         if (activity.getStatus() != ActivityStatus.PUBLISHED) {
             throw new BusinessException(ErrorCode.CONFLICT, "只有已发布活动可以报名");

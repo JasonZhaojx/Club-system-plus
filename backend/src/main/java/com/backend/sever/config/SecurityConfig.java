@@ -45,6 +45,8 @@ public class SecurityConfig {
                                 "/health",
                                 "/auth/register",
                                 "/auth/login",
+                                "/auth/password-reset/code",
+                                "/auth/password-reset/confirm",
                                 "/swagger-ui.html",
                         "/swagger-ui/**",
                         "/v3/api-docs/**"

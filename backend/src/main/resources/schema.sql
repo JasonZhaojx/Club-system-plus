@@ -10,6 +10,7 @@ create table if not exists app_user (
     created_at datetime not null default current_timestamp,
     updated_at datetime not null default current_timestamp on update current_timestamp,
     unique key uk_app_user_username (username),
+    key idx_app_user_email (email),
     key idx_app_user_status (status)
 );
 
@@ -160,6 +161,7 @@ insert ignore into permission (code, name, description) values
 ('activity:cancel', '取消活动', '取消活动'),
 ('activity:review', '审核活动', '审核活动发布和变更申请'),
 ('coupon:grab', '抢券', '领取或抢购优惠券'),
+('coupon:manage', '优惠券管理', '创建、修改和查询优惠券批次'),
 ('member:manage', '成员管理', '管理社团成员'),
 ('department:manage', '部门管理', '管理部门和负责人'),
 ('dashboard:view', '查看后台', '查看后台面板'),
@@ -171,6 +173,7 @@ update permission set name = '修改活动', description = '修改活动或提�
 update permission set name = '取消活动', description = '取消活动' where code = 'activity:cancel';
 update permission set name = '审核活动', description = '审核活动发布和变更申请' where code = 'activity:review';
 update permission set name = '抢券', description = '领取或抢购优惠券' where code = 'coupon:grab';
+update permission set name = '优惠券管理', description = '创建、修改和查询优惠券批次' where code = 'coupon:manage';
 update permission set name = '成员管理', description = '管理社团成员' where code = 'member:manage';
 update permission set name = '部门管理', description = '管理部门和负责人' where code = 'department:manage';
 update permission set name = '查看后台', description = '查看后台面板' where code = 'dashboard:view';
@@ -212,6 +215,7 @@ inner join permission p on p.code in (
     'activity:cancel',
     'activity:review',
     'coupon:grab',
+    'coupon:manage',
     'member:manage',
     'department:manage',
     'dashboard:view'

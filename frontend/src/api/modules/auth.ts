@@ -34,6 +34,15 @@ export interface RegisterPayload extends LoginPayload {
   email?: string
 }
 
+export interface PasswordResetCodePayload {
+  email: string
+}
+
+export interface PasswordResetConfirmPayload extends PasswordResetCodePayload {
+  code: string
+  newPassword: string
+}
+
 export function login(payload: LoginPayload) {
   return request<AuthToken>({
     url: '/auth/login',
@@ -46,6 +55,24 @@ export function login(payload: LoginPayload) {
 export function register(payload: RegisterPayload) {
   return request<AuthToken>({
     url: '/auth/register',
+    method: 'POST',
+    data: payload,
+    suppressGlobalError: true,
+  })
+}
+
+export function sendPasswordResetCode(payload: PasswordResetCodePayload) {
+  return request<void>({
+    url: '/auth/password-reset/code',
+    method: 'POST',
+    data: payload,
+    suppressGlobalError: true,
+  })
+}
+
+export function confirmPasswordReset(payload: PasswordResetConfirmPayload) {
+  return request<void>({
+    url: '/auth/password-reset/confirm',
     method: 'POST',
     data: payload,
     suppressGlobalError: true,

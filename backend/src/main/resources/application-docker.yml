@@ -26,3 +26,19 @@ spring:
     port: 5672
     username: ${RABBITMQ_USERNAME:guest}
     password: ${RABBITMQ_PASSWORD:guest}
+  mail:
+    host: ${MAIL_HOST:smtp.example.com}
+    port: ${MAIL_PORT:587}
+    username: ${MAIL_USERNAME:}
+    password: ${MAIL_PASSWORD:}
+    properties:
+      mail:
+        smtp:
+          auth: true
+          starttls:
+            enable: true
+
+app:
+  email-code:
+    secret: ${APP_EMAIL_CODE_SECRET:change-this-email-code-secret}
+    from: ${MAIL_FROM:${MAIL_USERNAME:}}

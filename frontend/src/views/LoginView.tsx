@@ -1,5 +1,5 @@
 import { FormEvent, useEffect, useState } from 'react'
-import { useLocation, useNavigate } from 'react-router-dom'
+import { Link, useLocation, useNavigate } from 'react-router-dom'
 import { login, register } from '@/api/modules/auth'
 import { canAccessAdmin, saveAuth } from '@/auth'
 
@@ -113,12 +113,17 @@ export default function LoginView() {
         </button>
         {error && <p className="form-error">{error}</p>}
         {mode === 'login' ? (
-          <p className="auth-switch">
-            如果没有账号，请先
-            <button className="inline-link" onClick={() => switchMode('register')} type="button">
-              注册
-            </button>
-          </p>
+          <div className="auth-switch-group">
+            <p className="auth-switch">
+              如果没有账号，请先
+              <button className="inline-link" onClick={() => switchMode('register')} type="button">
+                注册
+              </button>
+            </p>
+            <Link className="auth-muted-link" to="/forgot-password">
+              忘记密码？
+            </Link>
+          </div>
         ) : (
           <button className="secondary-button" onClick={() => switchMode('login')} type="button">
             返回登录

@@ -49,6 +49,20 @@
         limit 1
     </select>
 
+    <select id="selectByEmail" resultMap="UserResultMap">
+        select id,
+               username,
+               password_hash,
+               nickname,
+               email,
+               status,
+               created_at,
+               updated_at
+        from app_user
+        where email = #{email}
+        limit 1
+    </select>
+
     <select id="countByUsername" resultType="int">
         select count(1)
         from app_user
@@ -72,6 +86,12 @@
         update app_user
         set password_hash = #{passwordHash}
         where id = #{id}
+    </update>
+
+    <update id="updatePasswordByEmail">
+        update app_user
+        set password_hash = #{passwordHash}
+        where email = #{email}
     </update>
 
     <select id="selectMembershipByUserId" resultMap="UserMembershipResultMap">

@@ -8,6 +8,7 @@ import AdminView from '@/views/AdminView'
 import CouponsView from '@/views/CouponsView'
 import DashboardView from '@/views/DashboardView'
 import DepartmentsView from '@/views/DepartmentsView'
+import ForgotPasswordView from '@/views/ForgotPasswordView'
 import HomeView from '@/views/HomeView'
 import LeadersView from '@/views/LeadersView'
 import LoginView from '@/views/LoginView'
@@ -95,6 +96,10 @@ const router = createBrowserRouter([
       {
         path: 'login',
         element: <LoginView />,
+      },
+      {
+        path: 'forgot-password',
+        element: <ForgotPasswordView />,
       },
       {
         path: 'activities',

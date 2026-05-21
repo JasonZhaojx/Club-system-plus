@@ -28,6 +28,8 @@ function defaultMessageByStatus(status?: number) {
       return '资源不存在'
     case 409:
       return '业务冲突'
+    case 429:
+      return '请求过于频繁，请稍后再试'
     case 500:
       return '系统异常'
     default:

@@ -880,6 +880,17 @@ button:active,
   padding: 10px 12px;
 }
 
+.form-success {
+  background: #f0fdf4;
+  border: 1px solid #bbf7d0;
+  border-radius: 6px;
+  color: #166534;
+  font-size: 14px;
+  line-height: 1.5;
+  margin: 0;
+  padding: 10px 12px;
+}
+
 .success {
   color: #15803d;
 }
@@ -1099,6 +1110,21 @@ button:active,
   font-size: 14px;
   margin: 0;
   text-align: center;
+}
+
+.auth-switch-group {
+  display: grid;
+  gap: 10px;
+  justify-items: center;
+}
+
+.auth-muted-link {
+  color: #6e6e73;
+  font-size: 14px;
+}
+
+.auth-muted-link:hover {
+  color: #1d1d1f;
 }
 
 .inline-link {

@@ -16,11 +16,14 @@ import com.backend.pojo.vo.PageVO;
 import com.backend.pojo.vo.UserCouponVO;
 import com.backend.sever.exception.BusinessException;
 import com.backend.sever.exception.ErrorCode;
+import com.backend.sever.config.SentinelResourceNames;
 import com.backend.sever.mapper.CouponBatchMapper;
 import com.backend.sever.mapper.CouponClaimTaskMapper;
 import com.backend.sever.mapper.CouponRedemptionMapper;
 import com.backend.sever.mapper.UserCouponMapper;
+import com.backend.sever.service.BusinessRateLimiter;
 import com.backend.sever.service.CouponSeckillService;
+import com.backend.sever.service.SentinelGuard;
 import org.springframework.dao.DuplicateKeyException;
 import org.springframework.stereotype.Service;
 import org.springframework.transaction.annotation.Transactional;
@@ -37,6 +40,8 @@ public class CouponServiceImpl implements com.backend.sever.service.CouponServic
     private final CouponClaimTaskMapper couponClaimTaskMapper;
     private final CouponSeckillService couponSeckillService;
     private final CouponClaimMessageProducer couponClaimMessageProducer;
+    private final BusinessRateLimiter businessRateLimiter;
+    private final SentinelGuard sentinelGuard;
 
     public CouponServiceImpl(
             CouponBatchMapper couponBatchMapper,
@@ -44,7 +49,9 @@ public class CouponServiceImpl implements com.backend.sever.service.CouponServic
             CouponRedemptionMapper couponRedemptionMapper,
             CouponClaimTaskMapper couponClaimTaskMapper,
             CouponSeckillService couponSeckillService,
-            CouponClaimMessageProducer couponClaimMessageProducer
+            CouponClaimMessageProducer couponClaimMessageProducer,
+            BusinessRateLimiter businessRateLimiter,
+            SentinelGuard sentinelGuard
     ) {
         this.couponBatchMapper = couponBatchMapper;
         this.userCouponMapper = userCouponMapper;
@@ -52,6 +59,8 @@ public class CouponServiceImpl implements com.backend.sever.service.CouponServic
         this.couponClaimTaskMapper = couponClaimTaskMapper;
         this.couponSeckillService = couponSeckillService;
         this.couponClaimMessageProducer = couponClaimMessageProducer;
+        this.businessRateLimiter = businessRateLimiter;
+        this.sentinelGuard = sentinelGuard;
     }
 
     @Override
@@ -100,6 +109,18 @@ public class CouponServiceImpl implements com.backend.sever.service.CouponServic
     @Override
     @Transactional
     public UserCouponVO claimCoupon(UserPrincipal principal, Long batchId) {
+        businessRateLimiter.checkCouponClaim(principal.userId(), batchId);
+        try (SentinelGuard.GuardEntry guard = sentinelGuard.enter(SentinelResourceNames.COUPON_CLAIM, batchId)) {
+            try {
+                return doClaimCoupon(principal, batchId);
+            } catch (RuntimeException exception) {
+                guard.trace(exception);
+                throw exception;
+            }
+        }
+    }
+
+    private UserCouponVO doClaimCoupon(UserPrincipal principal, Long batchId) {
         CouponBatch batch = requireBatch(batchId);
         LocalDateTime now = LocalDateTime.now();
         if (batch.getStatus() != CouponBatchStatus.ACTIVE) {
