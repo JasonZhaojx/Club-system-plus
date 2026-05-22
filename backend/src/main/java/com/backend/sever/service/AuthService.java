@@ -10,7 +10,7 @@ import com.backend.pojo.vo.UserProfileVO;
 public interface AuthService {
     AuthTokenVO register(RegisterDTO request);
 
-    AuthTokenVO login(LoginDTO request);
+    AuthTokenVO login(LoginDTO request, String ipAddress);
 
     void sendPasswordResetCode(PasswordResetCodeDTO request, String ipAddress);
 

@@ -9,7 +9,9 @@
         <result column="password_hash" property="passwordHash"/>
         <result column="nickname" property="nickname"/>
         <result column="email" property="email"/>
+        <result column="avatar_url" property="avatarUrl"/>
         <result column="status" property="status"/>
+        <result column="token_version" property="tokenVersion"/>
         <result column="created_at" property="createdAt"/>
         <result column="updated_at" property="updatedAt"/>
     </resultMap>
@@ -41,7 +43,9 @@
                password_hash,
                nickname,
                email,
+               avatar_url,
                status,
+               token_version,
                created_at,
                updated_at
         from app_user
@@ -55,7 +59,9 @@
                password_hash,
                nickname,
                email,
+               avatar_url,
                status,
+               token_version,
                created_at,
                updated_at
         from app_user
@@ -78,19 +84,22 @@
     <update id="updateProfile">
         update app_user
         set nickname = #{nickname},
-            email = #{email}
+            email = #{email},
+            avatar_url = #{avatarUrl}
         where id = #{id}
     </update>
 
     <update id="updatePassword">
         update app_user
-        set password_hash = #{passwordHash}
+        set password_hash = #{passwordHash},
+            token_version = token_version + 1
         where id = #{id}
     </update>
 
     <update id="updatePasswordByEmail">
         update app_user
-        set password_hash = #{passwordHash}
+        set password_hash = #{passwordHash},
+            token_version = token_version + 1
         where email = #{email}
     </update>
 

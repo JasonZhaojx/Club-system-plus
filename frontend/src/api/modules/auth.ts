@@ -7,6 +7,7 @@ export interface UserProfile {
   username: string
   nickname: string
   email?: string | null
+  avatarUrl: string
   status: UserStatus
   roles: string[]
   permissions: string[]
@@ -93,7 +94,7 @@ export function getProfile() {
   })
 }
 
-export function updateProfile(payload: { nickname: string; email?: string | null }) {
+export function updateProfile(payload: { nickname: string; email?: string | null; avatarUrl?: string | null }) {
   return request<UserProfile>({
     url: '/users/me',
     method: 'PATCH',

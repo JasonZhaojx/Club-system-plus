@@ -52,12 +52,31 @@ services:
       retries: 10
       start_period: 20s
 
+  minio:
+    image: minio/minio
+    container_name: club-minio
+    command: server /data --console-address ":9001"
+    ports:
+      - "9000:9000"
+      - "9001:9001"
+    environment:
+      MINIO_ROOT_USER: ${MINIO_ROOT_USER:-minioadmin}
+      MINIO_ROOT_PASSWORD: ${MINIO_ROOT_PASSWORD:-minioadmin}
+    volumes:
+      - minio-data:/data
+    healthcheck:
+      test: ["CMD", "mc", "ready", "local"]
+      interval: 10s
+      timeout: 5s
+      retries: 10
+      start_period: 15s
+
   backend:
     build:
       context: ./backend
     container_name: club-backend
     environment:
-      SPRING_PROFILES_ACTIVE: docker
+      SPRING_PROFILES_ACTIVE: ${SPRING_PROFILES_ACTIVE:-docker}
       APP_JWT_SECRET: ${APP_JWT_SECRET}
       APP_EMAIL_CODE_SECRET: ${APP_EMAIL_CODE_SECRET}
       MYSQL_USERNAME: ${MYSQL_USERNAME:-root}
@@ -69,12 +88,19 @@ services:
       MAIL_USERNAME: ${MAIL_USERNAME:-}
       MAIL_PASSWORD: ${MAIL_PASSWORD:-}
       MAIL_FROM: ${MAIL_FROM:-}
+      MINIO_ENDPOINT: http://minio:9000
+      MINIO_ROOT_USER: ${MINIO_ROOT_USER:-minioadmin}
+      MINIO_ROOT_PASSWORD: ${MINIO_ROOT_PASSWORD:-minioadmin}
+      MINIO_BUCKET: ${MINIO_BUCKET:-club-images}
+      STORAGE_PROVIDER: ${STORAGE_PROVIDER:-minio}
     depends_on:
       mysql:
         condition: service_healthy
       redis:
         condition: service_healthy
       rabbitmq:
+        condition: service_healthy
+      minio:
         condition: service_healthy
     ports:
       - "8080:8080"
@@ -94,3 +120,4 @@ volumes:
   mysql-data:
   redis-data:
   rabbitmq-data:
+  minio-data:

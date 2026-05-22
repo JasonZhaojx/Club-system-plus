@@ -2,7 +2,7 @@ spring:
   application:
     name: backend
   profiles:
-    active: dev
+    default: dev
 
 server:
   port: 8080
@@ -21,15 +21,17 @@ mybatis-plus:
 springdoc:
   api-docs:
     path: /v3/api-docs
+    enabled: true
   swagger-ui:
     path: /swagger-ui.html
+    enabled: true
     operations-sorter: method
     tags-sorter: alpha
 
 app:
-  jwt:
-    secret: ${APP_JWT_SECRET:change-this-development-secret-at-least-32-chars}
-    expiration-seconds: 86400
+  security:
+    swagger-enabled: true
+    trust-forward-headers: false
   rate-limit:
     enabled: true
     capacity: 120
@@ -50,6 +52,10 @@ app:
     email-hourly-window-seconds: 3600
     email-ip-hourly-limit: 20
     email-ip-hourly-window-seconds: 3600
+    login-username-limit: 10
+    login-username-window-seconds: 300
+    login-ip-limit: 50
+    login-ip-window-seconds: 300
   sentinel:
     enabled: true
     coupon-claim-qps: 80
@@ -63,8 +69,10 @@ app:
     stat-interval-ms: 10000
     time-window-seconds: 10
   email-code:
-    secret: ${APP_EMAIL_CODE_SECRET:change-this-email-code-secret}
     ttl-seconds: 600
     max-verify-attempts: 5
-    from: ${MAIL_FROM:}
     subject: Club System Plus password reset code
+  storage:
+    provider: ${STORAGE_PROVIDER:minio}
+  file-storage:
+    max-image-size-bytes: 5242880

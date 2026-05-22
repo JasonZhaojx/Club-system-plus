@@ -13,6 +13,7 @@ import {
 } from '@/api/modules/activity'
 import { hasPermission } from '@/auth'
 import type { UserProfile } from '@/api/modules/auth'
+import { uploadImage } from '@/api/modules/file'
 import { getErrorMessage, showToast } from '@/toast'
 
 const statusNames: Record<ActivityStatus, string> = {
@@ -82,6 +83,7 @@ export default function ActivityAdminPanel({ user }: { user: UserProfile | null 
   const [form, setForm] = useState<ActivityFormState>(emptyForm)
   const [formError, setFormError] = useState('')
   const [saving, setSaving] = useState(false)
+  const [uploadingImage, setUploadingImage] = useState(false)
 
   const canCreate = hasPermission(user, 'activity:create')
   const canUpdate = hasPermission(user, 'activity:update')
@@ -148,6 +150,23 @@ export default function ActivityAdminPanel({ user }: { user: UserProfile | null 
       setFormError(getErrorMessage(err, '活动保存失败'))
     } finally {
       setSaving(false)
+    }
+  }
+
+  async function handleImageUpload(file: File | undefined) {
+    if (!file) {
+      return
+    }
+    setUploadingImage(true)
+    setFormError('')
+    try {
+      const result = await uploadImage(file, 'activity')
+      setForm((current) => ({ ...current, imageUrl: result.url }))
+      showToast('图片已上传', 'success')
+    } catch (err) {
+      setFormError(getErrorMessage(err, '图片上传失败'))
+    } finally {
+      setUploadingImage(false)
     }
   }
 
@@ -301,6 +320,21 @@ export default function ActivityAdminPanel({ user }: { user: UserProfile | null 
                 图片 URL
                 <input onChange={(event) => setForm({ ...form, imageUrl: event.target.value })} value={form.imageUrl} />
               </label>
+              <label className="form-grid-wide">
+                上传图片
+                <input
+                  accept="image/jpeg,image/png,image/webp"
+                  disabled={uploadingImage}
+                  onChange={(event) => void handleImageUpload(event.target.files?.[0])}
+                  type="file"
+                />
+              </label>
+              {form.imageUrl && (
+                <div className="form-grid-wide image-upload-preview">
+                  <img alt="活动图片预览" src={form.imageUrl} />
+                  <span>{uploadingImage ? '上传中...' : '当前活动图片'}</span>
+                </div>
+              )}
               <label className="form-grid-wide">
                 摘要
                 <textarea onChange={(event) => setForm({ ...form, summary: event.target.value })} rows={3} value={form.summary} />

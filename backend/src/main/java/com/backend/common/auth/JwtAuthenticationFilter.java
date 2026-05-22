@@ -1,6 +1,10 @@
 package com.backend.common.auth;
 
 import com.backend.sever.exception.BusinessException;
+import com.backend.sever.exception.ErrorCode;
+import com.backend.pojo.entity.User;
+import com.backend.pojo.entity.UserStatus;
+import com.backend.sever.mapper.UserMapper;
 import jakarta.servlet.FilterChain;
 import jakarta.servlet.ServletException;
 import jakarta.servlet.http.HttpServletRequest;
@@ -20,13 +24,16 @@ import java.util.stream.Stream;
 public class JwtAuthenticationFilter extends OncePerRequestFilter {
     private final JwtService jwtService;
     private final AuthorizationCache authorizationCache;
+    private final UserMapper userMapper;
 
     public JwtAuthenticationFilter(
             JwtService jwtService,
-            AuthorizationCache authorizationCache
+            AuthorizationCache authorizationCache,
+            UserMapper userMapper
     ) {
         this.jwtService = jwtService;
         this.authorizationCache = authorizationCache;
+        this.userMapper = userMapper;
     }
 
     @Override
@@ -39,12 +46,22 @@ public class JwtAuthenticationFilter extends OncePerRequestFilter {
         if (StringUtils.hasText(header) && header.startsWith("Bearer ")) {
             try {
                 UserPrincipal tokenPrincipal = jwtService.parse(header.substring(7));
+                User user = userMapper.selectById(tokenPrincipal.userId());
+                if (user == null || user.getStatus() != UserStatus.NORMAL) {
+                    throw new BusinessException(ErrorCode.UNAUTHORIZED);
+                }
+                int currentTokenVersion = user.getTokenVersion() == null ? 0 : user.getTokenVersion();
+                int tokenVersion = tokenPrincipal.tokenVersion() == null ? 0 : tokenPrincipal.tokenVersion();
+                if (currentTokenVersion != tokenVersion) {
+                    throw new BusinessException(ErrorCode.UNAUTHORIZED);
+                }
                 AuthorizationCache.AuthorizationSnapshot authorization = authorizationCache.get(tokenPrincipal.userId());
                 List<String> roles = authorization.roles();
                 List<String> permissions = authorization.permissions();
                 UserPrincipal principal = new UserPrincipal(
                         tokenPrincipal.userId(),
-                        tokenPrincipal.username(),
+                        user.getUsername(),
+                        currentTokenVersion,
                         roles,
                         permissions
                 );

@@ -5,6 +5,9 @@ import { canAccessDashboard, clearAuth, getStoredUser } from '@/auth'
 import type { UserProfile } from '@/api/modules/auth'
 import { TOAST_EVENT, type ToastPayload } from '@/toast'
 
+const DEFAULT_AVATAR_URL =
+  'https://ts1.tc.mm.bing.net/th/id/OIP-C.4n3KcdpOWTC32-U0LjDagwHaHa?cb=thfc1falcon&rs=1&pid=ImgDetMain&o=7&rm=3'
+
 export default function App() {
   const navigate = useNavigate()
   const [user, setUser] = useState<UserProfile | null>(() => getStoredUser())
@@ -74,7 +77,11 @@ export default function App() {
           {user ? (
             <>
               <NavLink className="nav-user" to="/profile">
-                {user.nickname || user.username}
+                <img
+                  alt="个人资料"
+                  className="nav-avatar"
+                  src={user.avatarUrl || DEFAULT_AVATAR_URL}
+                />
               </NavLink>
               <button className="link-button" onClick={handleLogout} type="button">
                 退出

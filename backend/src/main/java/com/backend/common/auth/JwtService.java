@@ -33,6 +33,7 @@ public class JwtService {
         Map<String, Object> payload = Map.of(
                 "sub", String.valueOf(user.getId()),
                 "username", user.getUsername(),
+                "tokenVersion", user.getTokenVersion() == null ? 0 : user.getTokenVersion(),
                 "iat", now,
                 "exp", now + properties.expirationSeconds()
         );
@@ -57,7 +58,9 @@ public class JwtService {
             }
             Long userId = Long.valueOf(String.valueOf(payload.get("sub")));
             String username = String.valueOf(payload.get("username"));
-            return new UserPrincipal(userId, username, List.of(), List.of());
+            Object tokenVersionValue = payload.get("tokenVersion");
+            Integer tokenVersion = tokenVersionValue == null ? 0 : Integer.valueOf(String.valueOf(tokenVersionValue));
+            return new UserPrincipal(userId, username, tokenVersion, List.of(), List.of());
         } catch (IOException | IllegalArgumentException exception) {
             throw new BusinessException(ErrorCode.UNAUTHORIZED);
         }

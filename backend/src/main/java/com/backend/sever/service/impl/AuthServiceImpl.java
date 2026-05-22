@@ -29,6 +29,8 @@ import java.util.List;
 
 @Service
 public class AuthServiceImpl implements AuthService {
+    private static final String DEFAULT_AVATAR_URL = "https://ts1.tc.mm.bing.net/th/id/OIP-C.4n3KcdpOWTC32-U0LjDagwHaHa?cb=thfc1falcon&rs=1&pid=ImgDetMain&o=7&rm=3";
+
     private final UserMapper userMapper;
     private final RoleMapper roleMapper;
     private final PermissionMapper permissionMapper;
@@ -75,6 +77,7 @@ public class AuthServiceImpl implements AuthService {
         user.setPasswordHash(passwordEncoder.encode(request.getPassword()));
         user.setNickname(StringUtils.hasText(request.getNickname()) ? request.getNickname().trim() : username);
         user.setEmail(StringUtils.hasText(request.getEmail()) ? request.getEmail().trim() : null);
+        user.setAvatarUrl(DEFAULT_AVATAR_URL);
         user.setStatus(UserStatus.NORMAL);
         userMapper.insert(user);
         roleMapper.insertUserRoleByCode(user.getId(), "REGISTERED_USER");
@@ -82,9 +85,11 @@ public class AuthServiceImpl implements AuthService {
     }
 
     @Override
-    public AuthTokenVO login(LoginDTO request) {
+    public AuthTokenVO login(LoginDTO request, String ipAddress) {
         validateLogin(request);
-        User user = userMapper.selectByUsername(request.getUsername().trim());
+        String username = request.getUsername().trim();
+        businessRateLimiter.checkLogin(username, ipAddress);
+        User user = userMapper.selectByUsername(username);
         if (user == null || !passwordEncoder.matches(request.getPassword(), user.getPasswordHash())) {
             throw new BusinessException(ErrorCode.UNAUTHORIZED, "用户名或密码错误");
         }

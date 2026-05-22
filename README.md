@@ -1,5 +1,67 @@
 # Club System Plus
 
+## 快速使用
+
+### 本地开发
+
+后端默认使用 `dev` profile，直接运行即可：
+
+```powershell
+cd backend
+.\mvnw.cmd spring-boot:run
+```
+
+前端本地开发：
+
+```powershell
+cd frontend
+npm install
+npm run dev
+```
+
+本地 Docker Compose 演示：
+
+```powershell
+Copy-Item .env.example .env
+docker compose up -d --build
+```
+
+本地默认访问：
+
+```text
+前端: http://localhost:5173
+后端: http://localhost:8080/api
+Swagger: http://localhost:8080/api/swagger-ui.html
+```
+
+### 服务器使用
+
+服务器使用 `prod` profile。先准备数据库表结构和必要环境变量，再启动后端：
+
+```powershell
+$env:SPRING_PROFILES_ACTIVE="prod"
+$env:APP_JWT_SECRET="replace-with-a-production-secret-at-least-32-chars"
+$env:APP_EMAIL_CODE_SECRET="replace-with-a-production-secret-at-least-32-chars"
+$env:MYSQL_URL="jdbc:mysql://mysql:3306/club_system_plus?useUnicode=true&characterEncoding=utf8&connectionCollation=utf8mb4_unicode_ci&serverTimezone=Asia/Shanghai&allowPublicKeyRetrieval=true&useSSL=false"
+$env:MYSQL_USERNAME="root"
+$env:MYSQL_PASSWORD="replace-with-real-password"
+$env:MAIL_HOST="smtp.example.com"
+$env:MAIL_USERNAME="replace-with-mail-user"
+$env:MAIL_PASSWORD="replace-with-mail-password"
+cd backend
+.\mvnw.cmd spring-boot:run
+```
+
+如果服务器使用 Docker Compose，将 `.env` 中的 `SPRING_PROFILES_ACTIVE` 改为 `prod`：
+
+```text
+SPRING_PROFILES_ACTIVE=prod
+APP_JWT_SECRET=replace-with-a-production-secret-at-least-32-chars
+APP_EMAIL_CODE_SECRET=replace-with-a-production-secret-at-least-32-chars
+```
+
+生产 profile 会关闭 Swagger 和 SQL 自动初始化。服务器首次启动前必须先建好表；线上入口建议只暴露 Nginx/HTTPS，MySQL、Redis、RabbitMQ、MinIO 不要直接暴露到公网。
+
 Club System Plus 是一个面向大学社团的网站系统，目标是把社团官网、活动报名、优惠券秒杀/抢券、成员管理和后台运营面板整合到一个完整项目中。整体技术风格参考“苍穹外卖”和“黑马点评”：后端以 Spring Boot 生态为主，结合 MySQL、Redis、JWT、权限控制、缓存、分布式锁/秒杀队列等能力；前端提供官网展示、用户端报名抢券、成员端活动编辑和管理后台。
 
 ## 项目定位

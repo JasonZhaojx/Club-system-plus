@@ -731,6 +731,80 @@ frontend   Nginx 托管前端静态资源，暴露 5173
 - MySQL root 密码仍写在示例配置中，真实生产环境应改为 `.env` 或密钥管理。
 - 后续如果加入 MinIO，可以继续在 Compose 中增加 `minio` 服务，并将活动图片上传地址切换到对象存储。
 
+## 2026-05-21：MinIO 私有对象存储与后端图片代理
+
+### 本次改动
+
+本次接入 MinIO，用于活动封面等图片上传。采用“MinIO bucket 私有 + Spring Boot 后端代理读取”的方案。
+
+新增能力：
+
+- `POST /api/files/images`：上传图片到 MinIO。
+- `GET /api/files/images/{objectName}`：后端从 MinIO 读取图片并返回给浏览器。
+- 活动管理表单支持上传图片，上传成功后自动把代理 URL 写入 `imageUrl`。
+- Docker Compose 新增 `minio` 服务和 `minio-data` 数据卷。
+
+上传限制：
+
+- 只允许 `image/jpeg`、`image/png`、`image/webp`。
+- 默认最大 5MB。
+- 上传场景只允许 `activity`、`avatar`、`coupon`。
+- objectName 使用 `scene/yyyy/MM/uuid.ext`，不信任原始文件名。
+- 读取图片时校验 objectName，拒绝空路径、`..` 和目录路径。
+
+### 架构选择
+
+没有把 MinIO bucket 设置成 public read，而是让后端代理图片访问。
+
+选择原因：
+
+- bucket 可以保持私有，不把对象存储直接暴露给浏览器。
+- 后端可以统一做权限、审计、缓存头、MIME 校验和路径校验。
+- 前端只依赖 `/api/files/images/**`，不需要知道 MinIO 内网地址、端口和 bucket 策略。
+- Docker 部署时后端访问 `http://minio:9000`，浏览器仍然访问同源 `/api`，避免前端直连容器内服务名。
+
+代价：
+
+- 图片流量会经过后端，后端承担额外带宽。
+- 大文件或高访问量场景下，应升级为 CDN、Nginx 内部代理、预签名 URL 或专门文件网关。
+- 当前实现为了简单将图片读入内存后返回，适合 5MB 内图片；大文件应改成流式转发。
+
+### 配置
+
+环境变量：
+
+```text
+MINIO_ROOT_USER=minioadmin
+MINIO_ROOT_PASSWORD=minioadmin
+MINIO_ENDPOINT=http://localhost:9000
+MINIO_BUCKET=club-images
+```
+
+Docker profile 中后端使用：
+
+```text
+MINIO_ENDPOINT=http://minio:9000
+```
+
+MinIO 控制台：
+
+```text
+http://localhost:9001
+```
+
+实现文件：
+
+- `backend/pom.xml`
+- `backend/src/main/java/com/backend/sever/config/MinioProperties.java`
+- `backend/src/main/java/com/backend/sever/config/MinioConfig.java`
+- `backend/src/main/java/com/backend/sever/controller/FileController.java`
+- `backend/src/main/java/com/backend/sever/service/FileStorageService.java`
+- `backend/src/main/java/com/backend/sever/service/impl/MinioFileStorageService.java`
+- `backend/src/main/java/com/backend/pojo/vo/FileUploadVO.java`
+- `frontend/src/api/modules/file.ts`
+- `frontend/src/views/ActivityAdminPanel.tsx`
+- `docker-compose.yml`
+
 ## 2026-05-21：Redis 业务限流、Sentinel 保护与邮箱找回密码
 
 ### Redis 业务限流
@@ -898,3 +972,33 @@ app:
 - 当前用户表邮箱没有唯一约束，只新增了普通索引；如果产品要求邮箱必须唯一，应在注册和资料修改时增加唯一校验，再升级数据库唯一索引。
 - 修改密码后旧 JWT 仍可能在有效期内可用，后续应增加 `token_version` 或 `password_changed_at` 机制，让旧 token 失效。
 - SMTP 在本地开发环境需要真实 `MAIL_HOST / MAIL_USERNAME / MAIL_PASSWORD` 才能发送邮件。
+## 2026-05-21: Security hardening for deploy profiles
+
+### Changes
+
+- Split runtime configuration into default common config, `application-dev.yml`, and `application-prod.yml`.
+- Kept `dev` as the default profile so local `./mvnw spring-boot:run` still works without extra parameters.
+- Added `application-prod.yml` for deployment:
+  - disables SQL auto initialization with `spring.sql.init.mode=never`;
+  - disables Springdoc Swagger UI and OpenAPI docs;
+  - requires `APP_JWT_SECRET` and `APP_EMAIL_CODE_SECRET` from environment variables;
+  - shortens the default JWT lifetime to 30 minutes through `APP_JWT_EXPIRATION_SECONDS`.
+- Added `app.security.swagger-enabled` and wired Spring Security so Swagger routes are public only when this flag is enabled.
+- Explicitly disabled HTTP Basic, form login, and logout in the stateless API security chain.
+- JWT authentication now checks the current database user status on every authenticated request. Disabled, deleted, or missing users can no longer keep using an old token.
+- Image upload now validates JPEG, PNG, and WebP by file signature instead of trusting the client supplied `Content-Type`.
+
+### Tradeoffs
+
+- Infrastructure account hardening is intentionally postponed per current scope: MySQL still supports the existing root-based local setup, and Redis/RabbitMQ/MinIO default credential cleanup is left for a later step.
+- The production profile disables schema initialization, so a real deployment must create or migrate the database before starting the backend.
+- User status is checked through the database on each authenticated request. This is more secure for account disabling, with a small extra query cost.
+- Uploaded images are read into memory for signature validation. This is acceptable under the current 5MB limit; larger file support should switch to streaming validation.
+
+## 2026-05-21: Additional security hardening
+
+- Added `token_version` to users. JWT now carries the version, and password changes/password resets increment it so old tokens become invalid immediately.
+- Added Redis login rate limiting by username and IP.
+- Centralized client IP resolution. `dev/docker` do not trust `X-Forwarded-For`; `prod` trusts proxy headers for Nginx-style deployment.
+- Added `prod` startup validation for JWT and email-code secrets.
+- Updated README with local development and server deployment usage.

@@ -16,6 +16,7 @@ public class UserProfileVO {
     private String username;
     private String nickname;
     private String email;
+    private String avatarUrl;
     private UserStatus status;
     private List<String> roles;
     private List<String> permissions;
@@ -36,6 +37,7 @@ public class UserProfileVO {
                 user.getUsername(),
                 user.getNickname(),
                 user.getEmail(),
+                user.getAvatarUrl(),
                 user.getStatus(),
                 roles,
                 permissions,

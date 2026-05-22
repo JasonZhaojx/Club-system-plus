@@ -24,12 +24,14 @@ import java.nio.charset.StandardCharsets;
 
 @Configuration
 @EnableMethodSecurity
-@EnableConfigurationProperties(JwtProperties.class)
+@EnableConfigurationProperties({JwtProperties.class, AppSecurityProperties.class})
 public class SecurityConfig {
     private final ObjectMapper objectMapper;
+    private final AppSecurityProperties securityProperties;
 
-    public SecurityConfig(ObjectMapper objectMapper) {
+    public SecurityConfig(ObjectMapper objectMapper, AppSecurityProperties securityProperties) {
         this.objectMapper = objectMapper;
+        this.securityProperties = securityProperties;
     }
 
     @Bean
@@ -39,21 +41,29 @@ public class SecurityConfig {
     ) throws Exception {
         http
                 .csrf(AbstractHttpConfigurer::disable)
+                .httpBasic(AbstractHttpConfigurer::disable)
+                .formLogin(AbstractHttpConfigurer::disable)
+                .logout(AbstractHttpConfigurer::disable)
                 .sessionManagement(session -> session.sessionCreationPolicy(SessionCreationPolicy.STATELESS))
-                .authorizeHttpRequests(auth -> auth
-                        .requestMatchers(
-                                "/health",
-                                "/auth/register",
-                                "/auth/login",
-                                "/auth/password-reset/code",
-                                "/auth/password-reset/confirm",
+                .authorizeHttpRequests(auth -> {
+                    auth.requestMatchers(
+                            "/health",
+                            "/auth/register",
+                            "/auth/login",
+                            "/auth/password-reset/code",
+                            "/auth/password-reset/confirm",
+                            "/files/images/**"
+                    ).permitAll();
+                    if (securityProperties.swaggerEnabled()) {
+                        auth.requestMatchers(
                                 "/swagger-ui.html",
-                        "/swagger-ui/**",
-                        "/v3/api-docs/**"
-                        ).permitAll()
-                        .requestMatchers(HttpMethod.GET, "/activities", "/activities/*").permitAll()
-                        .anyRequest().authenticated()
-                )
+                                "/swagger-ui/**",
+                                "/v3/api-docs/**"
+                        ).permitAll();
+                    }
+                    auth.requestMatchers(HttpMethod.GET, "/activities", "/activities/*").permitAll()
+                            .anyRequest().authenticated();
+                })
                 .exceptionHandling(exception -> exception.authenticationEntryPoint((request, response, authException) -> {
                     response.setStatus(HttpServletResponse.SC_UNAUTHORIZED);
                     response.setCharacterEncoding(StandardCharsets.UTF_8.name());

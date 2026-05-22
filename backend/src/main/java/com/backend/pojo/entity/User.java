@@ -17,7 +17,9 @@ public class User {
     private String passwordHash;
     private String nickname;
     private String email;
+    private String avatarUrl;
     private UserStatus status;
+    private Integer tokenVersion;
     private LocalDateTime createdAt;
     private LocalDateTime updatedAt;
 }

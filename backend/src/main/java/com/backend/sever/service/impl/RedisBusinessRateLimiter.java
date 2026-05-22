@@ -36,6 +36,30 @@ public class RedisBusinessRateLimiter implements BusinessRateLimiter {
     }
 
     @Override
+    public void checkLogin(String username, String ipAddress) {
+        if (!properties.isEnabled()) {
+            return;
+        }
+        String normalizedUsername = normalizeIdentity(username);
+        if (StringUtils.hasText(normalizedUsername)) {
+            requireAllowed(
+                    "rate:biz:login:username:" + hash(normalizedUsername),
+                    properties.getLoginUsernameLimit(),
+                    properties.getLoginUsernameWindowSeconds(),
+                    "鐧诲綍璇峰姹傝繃浜庨绻侊紝璇风◢鍚庡啀璇?"
+            );
+        }
+        if (StringUtils.hasText(ipAddress)) {
+            requireAllowed(
+                    "rate:biz:login:ip:" + hash(ipAddress),
+                    properties.getLoginIpLimit(),
+                    properties.getLoginIpWindowSeconds(),
+                    "褰撳墠缃戠粶鐧诲綍璇峰姹傝繃浜庨绻侊紝璇风◢鍚庡啀璇?"
+            );
+        }
+    }
+
+    @Override
     public void checkCouponClaim(Long userId, Long batchId) {
         if (!properties.isEnabled()) {
             return;
@@ -101,6 +125,10 @@ public class RedisBusinessRateLimiter implements BusinessRateLimiter {
 
     private String normalizeEmail(String email) {
         return StringUtils.hasText(email) ? email.trim().toLowerCase() : "";
+    }
+
+    private String normalizeIdentity(String value) {
+        return StringUtils.hasText(value) ? value.trim().toLowerCase() : "";
     }
 
     private String hash(String value) {

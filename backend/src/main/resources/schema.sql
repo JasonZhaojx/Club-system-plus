@@ -6,7 +6,9 @@ create table if not exists app_user (
     password_hash varchar(100) not null,
     nickname varchar(50) not null,
     email varchar(120) null,
+    avatar_url varchar(500) not null default 'https://ts1.tc.mm.bing.net/th/id/OIP-C.4n3KcdpOWTC32-U0LjDagwHaHa?cb=thfc1falcon&rs=1&pid=ImgDetMain&o=7&rm=3',
     status varchar(20) not null default 'NORMAL',
+    token_version int not null default 0,
     created_at datetime not null default current_timestamp,
     updated_at datetime not null default current_timestamp on update current_timestamp,
     unique key uk_app_user_username (username),
@@ -228,11 +230,12 @@ from role r
 cross join permission p
 where r.code = 'SYSTEM_MAINTAINER';
 
-insert into app_user (username, password_hash, nickname, email, status)
+insert into app_user (username, password_hash, nickname, email, avatar_url, status)
 select 'root',
        '$2b$10$XrQ2RVf22LS/mkNhsyAijeFUYzExS4jpck0c90An8o.MAcJqd0zI2',
        'Root',
        null,
+       'https://ts1.tc.mm.bing.net/th/id/OIP-C.4n3KcdpOWTC32-U0LjDagwHaHa?cb=thfc1falcon&rs=1&pid=ImgDetMain&o=7&rm=3',
        'NORMAL'
 where not exists (
     select 1

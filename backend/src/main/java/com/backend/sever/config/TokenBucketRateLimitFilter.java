@@ -50,15 +50,18 @@ public class TokenBucketRateLimitFilter extends OncePerRequestFilter {
     private final StringRedisTemplate redisTemplate;
     private final RateLimitProperties properties;
     private final ObjectMapper objectMapper;
+    private final ClientIpResolver clientIpResolver;
 
     public TokenBucketRateLimitFilter(
             StringRedisTemplate redisTemplate,
             RateLimitProperties properties,
-            ObjectMapper objectMapper
+            ObjectMapper objectMapper,
+            ClientIpResolver clientIpResolver
     ) {
         this.redisTemplate = redisTemplate;
         this.properties = properties;
         this.objectMapper = objectMapper;
+        this.clientIpResolver = clientIpResolver;
     }
 
     @Override
@@ -86,7 +89,7 @@ public class TokenBucketRateLimitFilter extends OncePerRequestFilter {
     private boolean allowed(HttpServletRequest request) {
         try {
             long now = System.currentTimeMillis() / 1000;
-            String key = "rate:bucket:" + clientIp(request) + ":" + request.getMethod() + ":" + normalizePath(request.getRequestURI());
+            String key = "rate:bucket:" + clientIpResolver.resolve(request) + ":" + request.getMethod() + ":" + normalizePath(request.getRequestURI());
             Long allowed = redisTemplate.execute(
                     TOKEN_BUCKET_SCRIPT,
                     List.of(key),
@@ -113,11 +116,4 @@ public class TokenBucketRateLimitFilter extends OncePerRequestFilter {
         return uri.replaceAll("/\\d+", "/{id}");
     }
 
-    private String clientIp(HttpServletRequest request) {
-        String forwardedFor = request.getHeader("X-Forwarded-For");
-        if (forwardedFor != null && !forwardedFor.isBlank()) {
-            return forwardedFor.split(",")[0].trim();
-        }
-        return request.getRemoteAddr();
-    }
 }

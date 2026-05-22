@@ -10,6 +10,7 @@ import com.backend.pojo.vo.UserProfileVO;
 import com.backend.sever.common.Result;
 import com.backend.sever.exception.BusinessException;
 import com.backend.sever.exception.ErrorCode;
+import com.backend.sever.config.ClientIpResolver;
 import com.backend.sever.service.AuthService;
 import jakarta.servlet.http.HttpServletRequest;
 import org.springframework.security.core.Authentication;
@@ -23,9 +24,11 @@ import org.springframework.web.bind.annotation.RestController;
 @RequestMapping("/auth")
 public class AuthController {
     private final AuthService authService;
+    private final ClientIpResolver clientIpResolver;
 
-    public AuthController(AuthService authService) {
+    public AuthController(AuthService authService, ClientIpResolver clientIpResolver) {
         this.authService = authService;
+        this.clientIpResolver = clientIpResolver;
     }
 
     @PostMapping("/register")
@@ -34,13 +37,13 @@ public class AuthController {
     }
 
     @PostMapping("/login")
-    public Result<AuthTokenVO> login(@RequestBody LoginDTO request) {
-        return Result.success(authService.login(request));
+    public Result<AuthTokenVO> login(@RequestBody LoginDTO request, HttpServletRequest servletRequest) {
+        return Result.success(authService.login(request, clientIpResolver.resolve(servletRequest)));
     }
 
     @PostMapping("/password-reset/code")
     public Result<Void> sendPasswordResetCode(@RequestBody PasswordResetCodeDTO request, HttpServletRequest servletRequest) {
-        authService.sendPasswordResetCode(request, clientIp(servletRequest));
+        authService.sendPasswordResetCode(request, clientIpResolver.resolve(servletRequest));
         return Result.success();
     }
 
@@ -61,13 +64,5 @@ public class AuthController {
             throw new BusinessException(ErrorCode.UNAUTHORIZED);
         }
         return Result.success(authService.currentUser(principal.userId()));
-    }
-
-    private String clientIp(HttpServletRequest request) {
-        String forwardedFor = request.getHeader("X-Forwarded-For");
-        if (forwardedFor != null && !forwardedFor.isBlank()) {
-            return forwardedFor.split(",")[0].trim();
-        }
-        return request.getRemoteAddr();
     }
 }

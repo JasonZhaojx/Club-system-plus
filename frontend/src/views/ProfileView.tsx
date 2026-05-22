@@ -1,5 +1,6 @@
 import { FormEvent, useEffect, useMemo, useState } from 'react'
 import { changePassword, getProfile, updateProfile, type UserProfile } from '@/api/modules/auth'
+import { uploadAvatar } from '@/api/modules/file'
 import { saveUser } from '@/auth'
 import PageLoading from '@/components/PageLoading'
 import { getErrorMessage, showToast } from '@/toast'
@@ -12,6 +13,9 @@ const roleNames: Record<string, string> = {
   SYSTEM_MAINTAINER: '系统维护者',
 }
 
+const DEFAULT_AVATAR_URL =
+  'https://ts1.tc.mm.bing.net/th/id/OIP-C.4n3KcdpOWTC32-U0LjDagwHaHa?cb=thfc1falcon&rs=1&pid=ImgDetMain&o=7&rm=3'
+
 const statusNames: Record<UserProfile['status'], string> = {
   NORMAL: '正常',
   DISABLED: '禁用',
@@ -22,6 +26,7 @@ export default function ProfileView() {
   const [user, setUser] = useState<UserProfile | null>(null)
   const [nickname, setNickname] = useState('')
   const [email, setEmail] = useState('')
+  const [avatarUrl, setAvatarUrl] = useState(DEFAULT_AVATAR_URL)
   const [oldPassword, setOldPassword] = useState('')
   const [newPassword, setNewPassword] = useState('')
   const [confirmPassword, setConfirmPassword] = useState('')
@@ -29,6 +34,7 @@ export default function ProfileView() {
   const [loading, setLoading] = useState(true)
   const [savingProfile, setSavingProfile] = useState(false)
   const [savingPassword, setSavingPassword] = useState(false)
+  const [uploadingAvatar, setUploadingAvatar] = useState(false)
   const [profileModalOpen, setProfileModalOpen] = useState(false)
   const [passwordModalOpen, setPasswordModalOpen] = useState(false)
 
@@ -49,6 +55,7 @@ export default function ProfileView() {
         setUser(profile)
         setNickname(profile.nickname || '')
         setEmail(profile.email || '')
+        setAvatarUrl(profile.avatarUrl || DEFAULT_AVATAR_URL)
         saveUser(profile)
       })
       .catch((err) => {
@@ -72,6 +79,7 @@ export default function ProfileView() {
     }
     setNickname(user.nickname || '')
     setEmail(user.email || '')
+    setAvatarUrl(user.avatarUrl || DEFAULT_AVATAR_URL)
     setError('')
     setProfileModalOpen(true)
   }
@@ -99,17 +107,35 @@ export default function ProfileView() {
     setSavingProfile(true)
     setError('')
     try {
-      const profile = await updateProfile({ nickname, email: email || null })
+      const profile = await updateProfile({ nickname, email: email || null, avatarUrl })
       setUser(profile)
       setNickname(profile.nickname || '')
       setEmail(profile.email || '')
+      setAvatarUrl(profile.avatarUrl || DEFAULT_AVATAR_URL)
       saveUser(profile)
       closeProfileModal()
       showToast('个人资料已更新', 'success')
     } catch (err) {
-      setError('')
+      setError(getErrorMessage(err, '个人资料更新失败'))
     } finally {
       setSavingProfile(false)
+    }
+  }
+
+  async function handleAvatarUpload(file: File | undefined) {
+    if (!file) {
+      return
+    }
+    setUploadingAvatar(true)
+    setError('')
+    try {
+      const result = await uploadAvatar(file)
+      setAvatarUrl(result.url)
+      showToast('头像已上传，请保存资料', 'success')
+    } catch (err) {
+      setError(getErrorMessage(err, '头像上传失败'))
+    } finally {
+      setUploadingAvatar(false)
     }
   }
 
@@ -161,7 +187,11 @@ export default function ProfileView() {
       {error && !profileModalOpen && !passwordModalOpen && <p className="error">{error}</p>}
 
       <section className="profile-summary">
-        <div className="profile-avatar">{(user.nickname || user.username).slice(0, 1).toUpperCase()}</div>
+        <img
+          alt="用户头像"
+          className="profile-avatar"
+          src={user.avatarUrl || DEFAULT_AVATAR_URL}
+        />
         <div>
           <h2>{user.nickname || user.username}</h2>
           <p>{primaryRole}</p>
@@ -263,7 +293,21 @@ export default function ProfileView() {
                   value={email}
                 />
               </label>
+              <label>
+                头像
+                <input
+                  accept="image/jpeg,image/png,image/webp"
+                  disabled={uploadingAvatar}
+                  onChange={(event) => void handleAvatarUpload(event.target.files?.[0])}
+                  type="file"
+                />
+              </label>
+              <div className="avatar-edit-preview">
+                <img alt="头像预览" src={avatarUrl || DEFAULT_AVATAR_URL} />
+                <span>{uploadingAvatar ? '上传中...' : '上传后点击保存生效'}</span>
+              </div>
             </div>
+            {error && <p className="form-error">{error}</p>}
             <div className="modal-actions">
               <button className="secondary-button" onClick={closeProfileModal} type="button">
                 取消

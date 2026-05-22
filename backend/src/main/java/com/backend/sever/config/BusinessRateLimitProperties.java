@@ -15,6 +15,10 @@ public class BusinessRateLimitProperties {
     private int emailHourlyWindowSeconds = 3600;
     private int emailIpHourlyLimit = 20;
     private int emailIpHourlyWindowSeconds = 3600;
+    private int loginUsernameLimit = 10;
+    private int loginUsernameWindowSeconds = 300;
+    private int loginIpLimit = 50;
+    private int loginIpWindowSeconds = 300;
 
     public boolean isEnabled() {
         return enabled;
@@ -102,5 +106,37 @@ public class BusinessRateLimitProperties {
 
     public void setEmailIpHourlyWindowSeconds(int emailIpHourlyWindowSeconds) {
         this.emailIpHourlyWindowSeconds = emailIpHourlyWindowSeconds;
+    }
+
+    public int getLoginUsernameLimit() {
+        return loginUsernameLimit;
+    }
+
+    public void setLoginUsernameLimit(int loginUsernameLimit) {
+        this.loginUsernameLimit = loginUsernameLimit;
+    }
+
+    public int getLoginUsernameWindowSeconds() {
+        return loginUsernameWindowSeconds;
+    }
+
+    public void setLoginUsernameWindowSeconds(int loginUsernameWindowSeconds) {
+        this.loginUsernameWindowSeconds = loginUsernameWindowSeconds;
+    }
+
+    public int getLoginIpLimit() {
+        return loginIpLimit;
+    }
+
+    public void setLoginIpLimit(int loginIpLimit) {
+        this.loginIpLimit = loginIpLimit;
+    }
+
+    public int getLoginIpWindowSeconds() {
+        return loginIpWindowSeconds;
+    }
+
+    public void setLoginIpWindowSeconds(int loginIpWindowSeconds) {
+        this.loginIpWindowSeconds = loginIpWindowSeconds;
     }
 }

@@ -19,9 +19,11 @@ import java.io.IOException;
 @Order(Ordered.LOWEST_PRECEDENCE)
 public class ApiLoggingFilter extends OncePerRequestFilter {
     private final DashboardMapper dashboardMapper;
+    private final ClientIpResolver clientIpResolver;
 
-    public ApiLoggingFilter(DashboardMapper dashboardMapper) {
+    public ApiLoggingFilter(DashboardMapper dashboardMapper, ClientIpResolver clientIpResolver) {
         this.dashboardMapper = dashboardMapper;
+        this.clientIpResolver = clientIpResolver;
     }
 
     @Override
@@ -39,7 +41,7 @@ public class ApiLoggingFilter extends OncePerRequestFilter {
             String path = request.getRequestURI();
             String method = request.getMethod();
             int status = response.getStatus();
-            String ipAddress = clientIp(request);
+            String ipAddress = clientIpResolver.resolve(request);
             try {
                 dashboardMapper.insertApiAccessLog(
                         method,
@@ -103,11 +105,4 @@ public class ApiLoggingFilter extends OncePerRequestFilter {
         return method + " " + path;
     }
 
-    private String clientIp(HttpServletRequest request) {
-        String forwardedFor = request.getHeader("X-Forwarded-For");
-        if (forwardedFor != null && !forwardedFor.isBlank()) {
-            return forwardedFor.split(",")[0].trim();
-        }
-        return request.getRemoteAddr();
-    }
 }

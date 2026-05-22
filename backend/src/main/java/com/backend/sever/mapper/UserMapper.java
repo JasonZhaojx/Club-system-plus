@@ -20,7 +20,12 @@ public interface UserMapper extends BaseMapper<User> {
 
     int updateStatus(@Param("id") Long id, @Param("status") UserStatus status);
 
-    int updateProfile(@Param("id") Long id, @Param("nickname") String nickname, @Param("email") String email);
+    int updateProfile(
+            @Param("id") Long id,
+            @Param("nickname") String nickname,
+            @Param("email") String email,
+            @Param("avatarUrl") String avatarUrl
+    );
 
     int updatePassword(@Param("id") Long id, @Param("passwordHash") String passwordHash);
 

@@ -8,7 +8,10 @@ import org.springframework.boot.context.properties.EnableConfigurationProperties
 import org.springframework.scheduling.annotation.EnableScheduling;
 import com.backend.sever.config.BusinessRateLimitProperties;
 import com.backend.sever.config.EmailCodeProperties;
+import com.backend.sever.config.FileStorageProperties;
+import com.backend.sever.config.MinioProperties;
 import com.backend.sever.config.SentinelProtectionProperties;
+import com.backend.sever.config.StorageProperties;
 
 @MapperScan("com.backend.sever.mapper")
 @SpringBootApplication(scanBasePackages = "com.backend")
@@ -17,7 +20,10 @@ import com.backend.sever.config.SentinelProtectionProperties;
 @EnableConfigurationProperties({
         BusinessRateLimitProperties.class,
         EmailCodeProperties.class,
-        SentinelProtectionProperties.class
+        FileStorageProperties.class,
+        MinioProperties.class,
+        SentinelProtectionProperties.class,
+        StorageProperties.class
 })
 public class BackendApplication {
 

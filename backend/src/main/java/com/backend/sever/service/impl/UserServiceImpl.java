@@ -20,6 +20,8 @@ import java.util.List;
 
 @Service
 public class UserServiceImpl implements UserService {
+    private static final String DEFAULT_AVATAR_URL = "https://ts1.tc.mm.bing.net/th/id/OIP-C.4n3KcdpOWTC32-U0LjDagwHaHa?cb=thfc1falcon&rs=1&pid=ImgDetMain&o=7&rm=3";
+
     private final UserMapper userMapper;
     private final RoleMapper roleMapper;
     private final PermissionMapper permissionMapper;
@@ -60,8 +62,17 @@ public class UserServiceImpl implements UserService {
         if (email != null && !email.matches("^[^\\s@]+@[^\\s@]+\\.[^\\s@]+$")) {
             throw new BusinessException(ErrorCode.BAD_REQUEST, "邮箱格式不正确");
         }
+        String avatarUrl = StringUtils.hasText(request.getAvatarUrl())
+                ? request.getAvatarUrl().trim()
+                : DEFAULT_AVATAR_URL;
+        if (avatarUrl.length() > 500) {
+            throw new BusinessException(ErrorCode.BAD_REQUEST, "头像地址长度不能超过 500 个字符");
+        }
+        if (!avatarUrl.equals(DEFAULT_AVATAR_URL) && !avatarUrl.startsWith("/api/files/images/avatar/")) {
+            throw new BusinessException(ErrorCode.BAD_REQUEST, "头像必须通过上传生成");
+        }
         findActiveUser(userId);
-        userMapper.updateProfile(userId, nickname, email);
+        userMapper.updateProfile(userId, nickname, email, avatarUrl);
         return currentUser(userId);
     }
 

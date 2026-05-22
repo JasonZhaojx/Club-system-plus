@@ -6,4 +6,5 @@ import lombok.Data;
 public class UpdateProfileDTO {
     private String nickname;
     private String email;
+    private String avatarUrl;
 }
