@@ -4,6 +4,7 @@ import { logout } from '@/api/modules/auth'
 import { canAccessDashboard, clearAuth, getStoredUser } from '@/auth'
 import type { UserProfile } from '@/api/modules/auth'
 import { TOAST_EVENT, type ToastPayload } from '@/toast'
+import AssistantWidget from '@/components/AssistantWidget'
 
 const DEFAULT_AVATAR_URL =
   'https://ts1.tc.mm.bing.net/th/id/OIP-C.4n3KcdpOWTC32-U0LjDagwHaHa?cb=thfc1falcon&rs=1&pid=ImgDetMain&o=7&rm=3'
@@ -12,9 +13,6 @@ export default function App() {
   const navigate = useNavigate()
   const [user, setUser] = useState<UserProfile | null>(() => getStoredUser())
   const [toast, setToast] = useState<ToastPayload | null>(null)
-  const [sidebarCollapsed, setSidebarCollapsed] = useState(
-    () => localStorage.getItem('sidebar_collapsed') === 'true',
-  )
 
   useEffect(() => {
     function handleAuthChange() {
@@ -43,7 +41,7 @@ export default function App() {
     if (!toast) {
       return
     }
-    const timer = window.setTimeout(() => setToast(null), 2000)
+    const timer = window.setTimeout(() => setToast(null), 3000)
     return () => window.clearTimeout(timer)
   }, [toast])
 
@@ -58,22 +56,29 @@ export default function App() {
     }
   }
 
-  function toggleSidebar() {
-    setSidebarCollapsed((current) => {
-      localStorage.setItem('sidebar_collapsed', String(!current))
-      return !current
-    })
-  }
-
   const toastType = toast?.type || 'error'
 
   return (
-    <main className={sidebarCollapsed ? 'page sidebar-collapsed' : 'page'}>
+    <main className="page">
       <header className="topbar">
         <NavLink className="brand-link" to="/">
-          Club System Plus
+          UNSW CSA 新南学联
         </NavLink>
+        <nav className="side-nav top-nav">
+          <NavLink to="/" end>
+            首页
+          </NavLink>
+          <NavLink to="/activities">活动</NavLink>
+          <NavLink to="/departments">部门展示</NavLink>
+          <NavLink to="/leaders">重要成员</NavLink>
+          <NavLink to="/coupons">优惠券</NavLink>
+          {user && <NavLink to="/my">我的</NavLink>}
+          {canAccessDashboard(user) && <NavLink to="/dashboard">数据面板</NavLink>}
+        </nav>
         <div className="account-area">
+          <NavLink className="top-contact-button" to="/join">
+            联系我们
+          </NavLink>
           {user ? (
             <>
               <NavLink className="nav-user" to="/profile">
@@ -92,28 +97,8 @@ export default function App() {
           )}
         </div>
       </header>
-      <button
-        aria-label={sidebarCollapsed ? '展开侧栏' : '收起侧栏'}
-        className="sidebar-toggle"
-        onClick={toggleSidebar}
-        type="button"
-      >
-        {sidebarCollapsed ? '›' : '‹'}
-      </button>
-      <aside className="sidebar">
-        <nav className="side-nav">
-          <NavLink to="/" end>
-            首页
-          </NavLink>
-          <NavLink to="/departments">部门展示</NavLink>
-          <NavLink to="/leaders">重要成员</NavLink>
-          <NavLink to="/activities">活动</NavLink>
-          <NavLink to="/coupons">优惠券</NavLink>
-          {user && <NavLink to="/my">我的</NavLink>}
-          {canAccessDashboard(user) && <NavLink to="/dashboard">数据面板</NavLink>}
-        </nav>
-      </aside>
       <Outlet />
+      <AssistantWidget />
       {toast && (
         <div className={`toast toast-${toastType}`} role="alert">
           <span className="toast-mark" aria-hidden="true" />

@@ -18,6 +18,8 @@ public class Activity {
     private String category;
     private String categoryName;
     private String imageUrl;
+    private String reviewImageUrl;
+    private String reviewContent;
     private String location;
     private LocalDateTime startTime;
     private LocalDateTime endTime;

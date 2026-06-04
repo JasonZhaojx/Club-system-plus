@@ -23,15 +23,16 @@ npm run dev
 
 ```powershell
 Copy-Item .env.example .env
+# 如需继续使用旧的本地演示端口，可以把 .env 里的 HTTP_PORT 改为 5173
 docker compose up -d --build
 ```
 
 本地默认访问：
 
 ```text
-前端: http://localhost:5173
-后端: http://localhost:8080/api
-Swagger: http://localhost:8080/api/swagger-ui.html
+前端: http://localhost:${HTTP_PORT}
+后端: 由前端 Nginx 反向代理到 /api
+Swagger: http://localhost:${HTTP_PORT}/api/swagger-ui.html
 ```
 
 ### 服务器使用
@@ -61,6 +62,58 @@ APP_EMAIL_CODE_SECRET=replace-with-a-production-secret-at-least-32-chars
 ```
 
 生产 profile 会关闭 Swagger 和 SQL 自动初始化。服务器首次启动前必须先建好表；线上入口建议只暴露 Nginx/HTTPS，MySQL、Redis、RabbitMQ、MinIO 不要直接暴露到公网。
+
+### Flyway 数据库迁移
+
+项目已经接入 Flyway，数据库结构由下面目录管理：
+
+```text
+backend/src/main/resources/db/migration/
+```
+
+当前初始化脚本：
+
+```text
+V1__init_schema.sql
+```
+
+启动后端时 Flyway 会自动创建 `flyway_schema_history` 表，并按版本执行还没执行过的 SQL。以后改表不要直接改已经执行过的 `V1`，而是新增新文件：
+
+```text
+V2__add_xxx_column.sql
+V3__create_xxx_table.sql
+```
+
+生产环境如果已有旧数据库，`baseline-on-migrate=true` 会允许 Flyway 接管历史库；新数据库会直接执行 `V1__init_schema.sql`。
+
+### 生产 `.env` 要点
+
+服务器 `.env` 不要使用默认账号密码，至少需要改成类似下面这样：
+
+```env
+SPRING_PROFILES_ACTIVE=prod
+HTTP_PORT=127.0.0.1:8081
+
+MYSQL_ROOT_PASSWORD=replace-with-strong-root-password
+MYSQL_USERNAME=club_app
+MYSQL_PASSWORD=replace-with-strong-app-password
+REDIS_PASSWORD=replace-with-strong-redis-password
+RABBITMQ_USERNAME=club_mq
+RABBITMQ_PASSWORD=replace-with-strong-rabbitmq-password
+MINIO_ROOT_USER=club_minio
+MINIO_ROOT_PASSWORD=replace-with-strong-minio-password
+
+APP_JWT_SECRET=replace-with-at-least-32-chars-secret
+APP_EMAIL_CODE_SECRET=replace-with-at-least-32-chars-secret
+```
+
+HTTPS 推荐在服务器外层 Caddy/Nginx 处理，例如 Caddy：
+
+```caddyfile
+your-domain.com {
+    reverse_proxy 127.0.0.1:8081
+}
+```
 
 Club System Plus 是一个面向大学社团的网站系统，目标是把社团官网、活动报名、优惠券秒杀/抢券、成员管理和后台运营面板整合到一个完整项目中。整体技术风格参考“苍穹外卖”和“黑马点评”：后端以 Spring Boot 生态为主，结合 MySQL、Redis、JWT、权限控制、缓存、分布式锁/秒杀队列等能力；前端提供官网展示、用户端报名抢券、成员端活动编辑和管理后台。
 
@@ -198,11 +251,11 @@ http://localhost:5173
 
 仓库根目录已提供 `docker-compose.yml`，会同时启动：
 
-- MySQL 8.4：`localhost:3306`
-- Redis 7.4：`localhost:6379`
-- RabbitMQ 4 Management：`localhost:5672`，管理台 `http://localhost:15672`
-- 后端 Spring Boot：`http://localhost:8080/api`
-- 前端 Nginx：`http://localhost:5173`
+- MySQL 8.4：仅 Docker 内网访问
+- Redis 7.4：仅 Docker 内网访问
+- RabbitMQ 4 Management：仅 Docker 内网访问
+- 后端 Spring Boot：仅 Docker 内网访问，由前端 Nginx 反向代理 `/api/**`
+- 前端 Nginx：`http://localhost:${HTTP_PORT}`，默认 `HTTP_PORT=80`
 
 首次启动前先创建 `.env`：
 

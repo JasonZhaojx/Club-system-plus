@@ -19,6 +19,8 @@ public class ActivityVO {
     private String category;
     private String categoryName;
     private String imageUrl;
+    private String reviewImageUrl;
+    private String reviewContent;
     private String location;
     private LocalDateTime startTime;
     private LocalDateTime endTime;
@@ -38,6 +40,8 @@ public class ActivityVO {
                 activity.getCategory(),
                 activity.getCategoryName(),
                 activity.getImageUrl(),
+                activity.getReviewImageUrl(),
+                activity.getReviewContent(),
                 activity.getLocation(),
                 activity.getStartTime(),
                 activity.getEndTime(),

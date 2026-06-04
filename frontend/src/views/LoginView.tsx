@@ -2,6 +2,7 @@ import { FormEvent, useEffect, useState } from 'react'
 import { Link, useLocation, useNavigate } from 'react-router-dom'
 import { login, register } from '@/api/modules/auth'
 import { canAccessAdmin, saveAuth } from '@/auth'
+import { getErrorMessage, showToast } from '@/toast'
 
 type AuthMode = 'login' | 'register'
 
@@ -16,17 +17,14 @@ export default function LoginView() {
   const [email, setEmail] = useState('')
   const [password, setPassword] = useState('')
   const [submitting, setSubmitting] = useState(false)
-  const [error, setError] = useState('')
 
   useEffect(() => {
     setMode(new URLSearchParams(location.search).get('mode') === 'register' ? 'register' : 'login')
-    setError('')
   }, [location.search])
 
   async function handleSubmit(event: FormEvent) {
     event.preventDefault()
     setSubmitting(true)
-    setError('')
     try {
       const auth =
         mode === 'login'
@@ -45,7 +43,7 @@ export default function LoginView() {
       }
       navigate(redirectTo || '/', { replace: true })
     } catch (err) {
-      setError(err instanceof Error ? err.message : mode === 'login' ? '登录失败' : '注册失败')
+      showToast(getErrorMessage(err, mode === 'login' ? '登录失败' : '注册失败'))
     } finally {
       setSubmitting(false)
     }
@@ -111,7 +109,6 @@ export default function LoginView() {
         <button disabled={submitting} type="submit">
           {submitting ? '提交中...' : mode === 'login' ? '登录' : '注册并登录'}
         </button>
-        {error && <p className="form-error">{error}</p>}
         {mode === 'login' ? (
           <div className="auth-switch-group">
             <p className="auth-switch">

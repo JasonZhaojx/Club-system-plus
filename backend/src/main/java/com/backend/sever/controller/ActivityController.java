@@ -2,6 +2,7 @@ package com.backend.sever.controller;
 
 import com.backend.common.auth.UserPrincipal;
 import com.backend.pojo.dto.ActivityCreateDTO;
+import com.backend.pojo.dto.ActivityReviewUpdateDTO;
 import com.backend.pojo.dto.ActivityUpdateDTO;
 import com.backend.pojo.entity.ActivityStatus;
 import com.backend.pojo.vo.ActivityRegistrationVO;
@@ -39,11 +40,12 @@ public class ActivityController {
     public Result<PageVO<ActivityVO>> listPublicActivities(
             @RequestParam(required = false) String keyword,
             @RequestParam(required = false) String category,
+            @RequestParam(required = false) ActivityStatus status,
             @RequestParam(defaultValue = "upcoming") String sort,
             @RequestParam(defaultValue = "1") int page,
             @RequestParam(defaultValue = "10") int size
     ) {
-        return Result.success(activityService.listPublicActivities(keyword, category, sort, page, size));
+        return Result.success(activityService.listPublicActivities(keyword, category, status, sort, page, size));
     }
 
     @GetMapping("/{activityId}")
@@ -80,6 +82,15 @@ public class ActivityController {
     @PreAuthorize("hasAnyAuthority('activity:update', 'system:maintain')")
     public Result<ActivityVO> updateActivity(@PathVariable Long activityId, @RequestBody ActivityUpdateDTO request) {
         return Result.success(activityService.updateActivity(activityId, request));
+    }
+
+    @PatchMapping("/{activityId}/review")
+    @PreAuthorize("hasAnyAuthority('activity:review', 'system:maintain')")
+    public Result<ActivityVO> updateActivityReview(
+            @PathVariable Long activityId,
+            @RequestBody ActivityReviewUpdateDTO request
+    ) {
+        return Result.success(activityService.updateActivityReview(activityId, request));
     }
 
     @PatchMapping("/{activityId}/submit")

@@ -10,6 +10,7 @@ import DashboardView from '@/views/DashboardView'
 import DepartmentsView from '@/views/DepartmentsView'
 import ForgotPasswordView from '@/views/ForgotPasswordView'
 import HomeView from '@/views/HomeView'
+import JoinView from '@/views/JoinView'
 import LeadersView from '@/views/LeadersView'
 import LoginView from '@/views/LoginView'
 import MyActivitiesView from '@/views/MyActivitiesView'
@@ -128,6 +129,10 @@ const router = createBrowserRouter([
       {
         path: 'leaders',
         element: <LeadersView />,
+      },
+      {
+        path: 'join',
+        element: <JoinView />,
       },
       {
         path: 'profile',

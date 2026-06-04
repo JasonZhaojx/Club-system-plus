@@ -2,17 +2,25 @@ package com.backend.sever.config;
 
 import org.springframework.boot.ApplicationArguments;
 import org.springframework.boot.ApplicationRunner;
+import org.springframework.core.io.ResourceLoader;
 import org.springframework.jdbc.core.JdbcTemplate;
+import org.springframework.jdbc.datasource.init.ResourceDatabasePopulator;
 import org.springframework.stereotype.Component;
+
+import javax.sql.DataSource;
 
 @Component
 public class DatabaseIndexInitializer implements ApplicationRunner {
     private static final String DEFAULT_AVATAR_URL = "https://ts1.tc.mm.bing.net/th/id/OIP-C.4n3KcdpOWTC32-U0LjDagwHaHa?cb=thfc1falcon&rs=1&pid=ImgDetMain&o=7&rm=3";
 
     private final JdbcTemplate jdbcTemplate;
+    private final DataSource dataSource;
+    private final ResourceLoader resourceLoader;
 
-    public DatabaseIndexInitializer(JdbcTemplate jdbcTemplate) {
+    public DatabaseIndexInitializer(JdbcTemplate jdbcTemplate, DataSource dataSource, ResourceLoader resourceLoader) {
         this.jdbcTemplate = jdbcTemplate;
+        this.dataSource = dataSource;
+        this.resourceLoader = resourceLoader;
     }
 
     @Override
@@ -26,6 +34,10 @@ public class DatabaseIndexInitializer implements ApplicationRunner {
                 "alter table app_user add index idx_app_user_email (email)");
         addIndex("club_member", "idx_club_member_department_status",
                 "alter table club_member add index idx_club_member_department_status (department_id, status)");
+        addColumn("activity", "review_image_url",
+                "alter table activity add column review_image_url varchar(500) null after image_url");
+        addColumn("activity", "review_content",
+                "alter table activity add column review_content text null after review_image_url");
         addIndex("activity", "idx_activity_public_query",
                 "alter table activity add index idx_activity_public_query (status, category, start_time, id)");
         addIndex("activity", "idx_activity_latest_query",
@@ -42,6 +54,9 @@ public class DatabaseIndexInitializer implements ApplicationRunner {
                 "alter table user_coupon add index idx_user_coupon_user_status (user_id, status)");
         addIndex("user_coupon", "idx_user_coupon_batch_status",
                 "alter table user_coupon add index idx_user_coupon_batch_status (batch_id, status)");
+
+        runIdempotentSql("classpath:db/migration/V2__create_assistant_faq.sql");
+        runIdempotentSql("classpath:db/migration/V4__seed_unsw_csa_activity_content.sql");
     }
 
     private void addColumn(String tableName, String columnName, String ddl) {
@@ -78,5 +93,11 @@ public class DatabaseIndexInitializer implements ApplicationRunner {
         if (count == null || count == 0) {
             jdbcTemplate.execute(ddl);
         }
+    }
+
+    private void runIdempotentSql(String location) {
+        ResourceDatabasePopulator populator = new ResourceDatabasePopulator(resourceLoader.getResource(location));
+        populator.setSqlScriptEncoding("UTF-8");
+        populator.execute(dataSource);
     }
 }

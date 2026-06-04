@@ -1002,3 +1002,66 @@ app:
 - Centralized client IP resolution. `dev/docker` do not trust `X-Forwarded-For`; `prod` trusts proxy headers for Nginx-style deployment.
 - Added `prod` startup validation for JWT and email-code secrets.
 - Updated README with local development and server deployment usage.
+
+## 2026-05-22: Nginx entrypoint and browser security headers
+
+- Docker Compose now exposes only the frontend Nginx entrypoint to the host through `HTTP_PORT`; MySQL, Redis, RabbitMQ, MinIO, and backend stay on the Docker internal network.
+- Backend is reachable only by Nginx inside Compose through `http://backend:8080/api/`.
+- Added Nginx security headers: CSP, `X-Content-Type-Options`, `X-Frame-Options`, `Referrer-Policy`, and `Permissions-Policy`.
+- CSP keeps scripts to `self`, blocks framing and plugins, and allows images from `self`, `data:`, and HTTPS sources for uploaded images and the external default avatar.
+- HTTPS should be terminated by the server-level Nginx/Caddy/load balancer, or by replacing this container Nginx config with a certificate-backed 443 server block.
+
+## 2026-05-23: Flyway and infrastructure credential hardening
+
+- Added Flyway and moved schema initialization to `db/migration/V1__init_schema.sql`.
+- Disabled Spring SQL auto initialization; Flyway now owns database version execution.
+- Docker Compose now creates a MySQL app user from `MYSQL_USERNAME/MYSQL_PASSWORD` instead of using root for backend access.
+- Redis now requires `REDIS_PASSWORD`; backend profiles read the Redis password from environment variables.
+- RabbitMQ and MinIO credentials no longer fall back to `guest` or `minioadmin` in Docker/prod configs.
+- `prod` startup validation now rejects missing/default infrastructure credentials and weak JWT/email-code secrets.
+- README documents Flyway usage, production `.env` requirements, and HTTPS via external Caddy/Nginx.
+
+## 2026-06-04: Database fallback seeding and activity visibility fix
+
+### 问题
+
+- 当前本地数据库缺少 `flyway_schema_history`，说明历史表结构不是通过 Flyway 完整迁移出来的，导致 `V2__create_assistant_faq.sql`、`V4__seed_unsw_csa_activity_content.sql` 不能可靠自动落库。
+- Assistant 接口查询 `assistant_faq` 时，如果当前库没有执行 V2，会出现 `Table 'club_system_plus.assistant_faq' doesn't exist`。
+- 活动种子 SQL 旧版本使用固定 `id=1..10`，直接执行可能覆盖已有活动。
+- 前端按 `PUBLISHED` 查询可报名活动，但又在本地过滤过期活动；后端已结束列表只查 `ENDED`，导致过期但仍是 `PUBLISHED` 的活动两边都不展示，看起来像活动消失。
+
+### 修复
+
+- 将 `V4__seed_unsw_csa_activity_content.sql` 改为按活动标题幂等补齐，不再使用固定 ID，不覆盖已有活动。
+- 根据 UNSW CSA 页面文案补齐 10 个活动：
+  - `学期迎新摆摊和派对`
+  - `学期期末加油包`
+  - `周常社交运动局`
+  - `文化美食夜市摆摊`
+  - `汪汪解压局`
+  - `职规Networking & Peer Mentoring`
+  - `澳洲八大新生行前会`
+  - `南半球官方电竞比赛`
+  - `留学人员中秋国庆晚会`
+  - `「月下巡航」万圣节游轮派对`
+- 在 `DatabaseIndexInitializer` 中启动时执行幂等 SQL：
+  - `db/migration/V2__create_assistant_faq.sql`
+  - `db/migration/V4__seed_unsw_csa_activity_content.sql`
+- 修复公开活动查询逻辑：
+  - `status=PUBLISHED` 时只返回 `start_time > current_timestamp` 的可报名活动。
+  - `status=ENDED` 时返回显式 `ENDED` 或 `end_time <= current_timestamp` 的历史活动。
+- 更新 `docs/task_plan.md`，补充 `assistant_faq` 表设计、Assistant 模块说明和迁移一致性注意事项。
+
+### 验证
+
+- 当前数据库活动总数为 `15`，原有 5 条活动保留，UNSW CSA 10 条活动已追加。
+- 当前按时间口径统计：可报名活动 `8` 条，已结束活动 `7` 条。
+- 活动标题无重复。
+- `assistant_faq` 表存在，并有 4 条 FAQ 数据。
+- `mvn -q -DskipTests package` 通过。
+- `mvn -q test` 通过。
+
+### 注意
+
+- `backend/src/main/resources/db/` 需要纳入版本控制，否则迁移 SQL 在其他环境不会跟随代码提交。
+- 当前启动兜底是为了修复历史数据库未被 Flyway 管理的问题；长期仍应保证新环境统一通过 Flyway 初始化和迁移数据库。

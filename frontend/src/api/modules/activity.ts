@@ -12,6 +12,8 @@ export interface Activity {
   category: string
   categoryName: string
   imageUrl?: string | null
+  reviewImageUrl?: string | null
+  reviewContent?: string | null
   location: string
   startTime: string
   endTime: string
@@ -35,6 +37,11 @@ export interface ActivityPayload {
   endTime: string
   capacity: number
   requiredRoleCode?: string | null
+}
+
+export interface ActivityReviewPayload {
+  reviewImageUrl?: string | null
+  reviewContent?: string | null
 }
 
 export interface ActivityRegistration {
@@ -92,6 +99,14 @@ export function updateActivity(activityId: number, payload: ActivityPayload) {
   return request<Activity>({
     method: 'PUT',
     url: `/activities/${activityId}`,
+    data: payload,
+  })
+}
+
+export function updateActivityReview(activityId: number, payload: ActivityReviewPayload) {
+  return request<Activity>({
+    method: 'PATCH',
+    url: `/activities/${activityId}/review`,
     data: payload,
   })
 }

@@ -11,6 +11,8 @@
         <result column="category" property="category"/>
         <result column="category_name" property="categoryName"/>
         <result column="image_url" property="imageUrl"/>
+        <result column="review_image_url" property="reviewImageUrl"/>
+        <result column="review_content" property="reviewContent"/>
         <result column="location" property="location"/>
         <result column="start_time" property="startTime"/>
         <result column="end_time" property="endTime"/>
@@ -26,7 +28,7 @@
     </resultMap>
 
     <sql id="ActivityColumns">
-        id, title, summary, detail, category, category_name, image_url, location, start_time, end_time,
+        id, title, summary, detail, category, category_name, image_url, review_image_url, review_content, location, start_time, end_time,
         capacity, registered_count, status, required_role_code, creator_id, reviewer_id, published_at,
         created_at, updated_at
     </sql>
@@ -46,12 +48,24 @@
             <if test="category != null and category != ''">
                 and category = #{category}
             </if>
-            <if test="status != null">
-                and status = #{status}
-            </if>
-            <if test="publicOnly">
-                and status in ('PUBLISHED', 'ENDED')
-            </if>
+            <choose>
+                <when test="publicOnly and status != null and status.toString() == 'PUBLISHED'">
+                    and status = 'PUBLISHED'
+                    and start_time &gt; current_timestamp
+                </when>
+                <when test="publicOnly and status != null and status.toString() == 'ENDED'">
+                    and (
+                        status = 'ENDED'
+                        or end_time &lt;= current_timestamp
+                    )
+                </when>
+                <when test="status != null">
+                    and status = #{status}
+                </when>
+                <when test="publicOnly">
+                    and status in ('PUBLISHED', 'ENDED')
+                </when>
+            </choose>
         </where>
         <choose>
             <when test="sort == 'latest'">order by published_at desc, id desc</when>
@@ -78,12 +92,24 @@
             <if test="category != null and category != ''">
                 and category = #{category}
             </if>
-            <if test="status != null">
-                and status = #{status}
-            </if>
-            <if test="publicOnly">
-                and status in ('PUBLISHED', 'ENDED')
-            </if>
+            <choose>
+                <when test="publicOnly and status != null and status.toString() == 'PUBLISHED'">
+                    and status = 'PUBLISHED'
+                    and start_time &gt; current_timestamp
+                </when>
+                <when test="publicOnly and status != null and status.toString() == 'ENDED'">
+                    and (
+                        status = 'ENDED'
+                        or end_time &lt;= current_timestamp
+                    )
+                </when>
+                <when test="status != null">
+                    and status = #{status}
+                </when>
+                <when test="publicOnly">
+                    and status in ('PUBLISHED', 'ENDED')
+                </when>
+            </choose>
         </where>
     </select>
 
@@ -109,6 +135,14 @@
             reviewer_id = #{reviewerId},
             published_at = case when #{status} = 'PUBLISHED' then current_timestamp else published_at end
         where id = #{id}
+    </update>
+
+    <update id="updateReview" parameterType="map">
+        update activity
+        set review_image_url = #{reviewImageUrl},
+            review_content = #{reviewContent}
+        where id = #{id}
+          and status = 'ENDED'
     </update>
 
     <update id="incrementRegistrationCount" parameterType="map">

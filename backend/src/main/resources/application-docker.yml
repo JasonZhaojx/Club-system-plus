@@ -2,7 +2,7 @@ spring:
   datasource:
     driver-class-name: com.mysql.cj.jdbc.Driver
     url: jdbc:mysql://mysql:3306/club_system_plus?useUnicode=true&characterEncoding=utf8&connectionCollation=utf8mb4_unicode_ci&serverTimezone=Asia/Shanghai&allowPublicKeyRetrieval=true&useSSL=false&createDatabaseIfNotExist=true
-    username: ${MYSQL_USERNAME:root}
+    username: ${MYSQL_USERNAME}
     password: ${MYSQL_PASSWORD}
     hikari:
       pool-name: ClubSystemPlusHikariPool
@@ -12,20 +12,17 @@ spring:
       idle-timeout: 600000
       max-lifetime: 1800000
       connection-init-sql: SET NAMES utf8mb4 COLLATE utf8mb4_unicode_ci
-  sql:
-    init:
-      mode: always
-      encoding: UTF-8
   data:
     redis:
       host: redis
       port: 6379
+      password: ${REDIS_PASSWORD}
       timeout: 3000ms
   rabbitmq:
     host: rabbitmq
     port: 5672
-    username: ${RABBITMQ_USERNAME:guest}
-    password: ${RABBITMQ_PASSWORD:guest}
+    username: ${RABBITMQ_USERNAME}
+    password: ${RABBITMQ_PASSWORD}
   mail:
     host: ${MAIL_HOST:smtp.example.com}
     port: ${MAIL_PORT:587}
@@ -44,6 +41,6 @@ app:
     from: ${MAIL_FROM:${MAIL_USERNAME:}}
   minio:
     endpoint: ${MINIO_ENDPOINT:http://minio:9000}
-    access-key: ${MINIO_ROOT_USER:minioadmin}
-    secret-key: ${MINIO_ROOT_PASSWORD:minioadmin}
+    access-key: ${MINIO_ROOT_USER}
+    secret-key: ${MINIO_ROOT_PASSWORD}
     bucket: ${MINIO_BUCKET:club-images}

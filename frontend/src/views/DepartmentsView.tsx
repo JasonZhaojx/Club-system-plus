@@ -7,7 +7,7 @@ export default function DepartmentsView() {
         <div>
           <p className="profile-eyebrow">Departments</p>
           <h1>部门展示</h1>
-          <p>不同部门承担不同组织职责，共同支撑活动、项目和成员发展。</p>
+          <p>不同部门分工协作，共同支撑迎新、文化活动、职业发展、宣传传播和对外合作。</p>
         </div>
       </div>
       <div className="value-grid department-grid">

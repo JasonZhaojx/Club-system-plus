@@ -147,12 +147,19 @@ export default function ActivityDetailView() {
             {!ended && <span>{remaining} / {activity.capacity} 个名额可用</span>}
           </div>
           <p>{activity.detail}</p>
+          {ended && (activity.reviewImageUrl || activity.reviewContent) && (
+            <section className="activity-review-detail">
+              <h2>活动回顾</h2>
+              {activity.reviewImageUrl && <img alt={`${activity.title} 活动回顾`} src={activity.reviewImageUrl} />}
+              {activity.reviewContent && <p>{activity.reviewContent}</p>}
+            </section>
+          )}
         </div>
         {!ended && (
           <aside className="activity-apply-panel">
             <span>报名状态</span>
             <strong>{registered ? '已报名' : remaining > 0 ? '开放报名' : '名额已满'}</strong>
-            <p>{roleAllowed ? '你可以报名参加该活动。' : '当前账号暂不可报名该活动。'}</p>
+            <p>{roleAllowed ? '欢迎报名参加本次学联活动，和更多同学一起体验校园生活。' : '当前账号暂不可报名该活动。'}</p>
             <div className="activity-capacity-bar">
               <span style={{ width: `${Math.min((activity.registeredCount / activity.capacity) * 100, 100)}%` }} />
             </div>

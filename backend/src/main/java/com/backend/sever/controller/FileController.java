@@ -8,6 +8,7 @@ import org.springframework.http.CacheControl;
 import org.springframework.http.MediaType;
 import org.springframework.http.ResponseEntity;
 import org.springframework.security.access.prepost.PreAuthorize;
+import org.springframework.security.core.Authentication;
 import org.springframework.web.bind.annotation.GetMapping;
 import org.springframework.web.bind.annotation.PostMapping;
 import org.springframework.web.bind.annotation.RequestMapping;
@@ -29,12 +30,25 @@ public class FileController {
     }
 
     @PostMapping("/images")
-    @PreAuthorize("hasAnyAuthority('activity:create', 'activity:update', 'coupon:manage', 'system:maintain')")
+    @PreAuthorize("hasAnyAuthority('activity:create', 'activity:update', 'activity:review', 'coupon:manage', 'system:maintain')")
     public Result<FileUploadVO> uploadImage(
             @RequestParam("file") MultipartFile file,
-            @RequestParam(defaultValue = "activity") String scene
+            @RequestParam(defaultValue = "activity") String scene,
+            Authentication authentication
     ) {
+        if ("activity-review".equals(scene) && !canManageActivityReview(authentication)) {
+            throw new org.springframework.security.access.AccessDeniedException("Only activity reviewers can upload activity review images");
+        }
         return Result.success(fileStorageService.uploadImage(file, scene));
+    }
+
+    private boolean canManageActivityReview(Authentication authentication) {
+        if (authentication == null) {
+            return false;
+        }
+        return authentication.getAuthorities().stream()
+                .anyMatch(authority -> "activity:review".equals(authority.getAuthority())
+                        || "system:maintain".equals(authority.getAuthority()));
     }
 
     @PostMapping("/avatars")

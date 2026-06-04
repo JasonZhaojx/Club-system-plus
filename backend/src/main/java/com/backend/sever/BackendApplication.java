@@ -9,6 +9,7 @@ import org.springframework.scheduling.annotation.EnableScheduling;
 import com.backend.sever.config.BusinessRateLimitProperties;
 import com.backend.sever.config.EmailCodeProperties;
 import com.backend.sever.config.FileStorageProperties;
+import com.backend.sever.config.AiProperties;
 import com.backend.sever.config.MinioProperties;
 import com.backend.sever.config.SentinelProtectionProperties;
 import com.backend.sever.config.StorageProperties;
@@ -18,6 +19,7 @@ import com.backend.sever.config.StorageProperties;
 @EnableScheduling
 @EnableRabbit
 @EnableConfigurationProperties({
+        AiProperties.class,
         BusinessRateLimitProperties.class,
         EmailCodeProperties.class,
         FileStorageProperties.class,

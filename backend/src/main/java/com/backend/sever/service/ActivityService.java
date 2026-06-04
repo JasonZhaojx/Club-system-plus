@@ -2,6 +2,7 @@ package com.backend.sever.service;
 
 import com.backend.common.auth.UserPrincipal;
 import com.backend.pojo.dto.ActivityCreateDTO;
+import com.backend.pojo.dto.ActivityReviewUpdateDTO;
 import com.backend.pojo.dto.ActivityUpdateDTO;
 import com.backend.pojo.entity.ActivityStatus;
 import com.backend.pojo.vo.ActivityRegistrationVO;
@@ -11,7 +12,11 @@ import com.backend.pojo.vo.PageVO;
 import java.util.List;
 
 public interface ActivityService {
-    PageVO<ActivityVO> listPublicActivities(String keyword, String category, String sort, int page, int size);
+    PageVO<ActivityVO> listPublicActivities(String keyword, String category, ActivityStatus status, String sort, int page, int size);
+
+    default PageVO<ActivityVO> listPublicActivities(String keyword, String category, String sort, int page, int size) {
+        return listPublicActivities(keyword, category, null, sort, page, size);
+    }
 
     PageVO<ActivityVO> listManageActivities(String keyword, String category, ActivityStatus status, String sort, int page, int size);
 
@@ -22,6 +27,8 @@ public interface ActivityService {
     ActivityVO createActivity(UserPrincipal principal, ActivityCreateDTO request);
 
     ActivityVO updateActivity(Long activityId, ActivityUpdateDTO request);
+
+    ActivityVO updateActivityReview(Long activityId, ActivityReviewUpdateDTO request);
 
     ActivityVO submitReview(Long activityId);
 

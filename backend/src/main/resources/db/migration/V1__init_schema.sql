@@ -99,8 +99,6 @@ create table if not exists activity (
     category varchar(50) not null,
     category_name varchar(50) not null,
     image_url varchar(500) null,
-    review_image_url varchar(500) null,
-    review_content text null,
     location varchar(120) not null,
     start_time datetime not null,
     end_time datetime not null,

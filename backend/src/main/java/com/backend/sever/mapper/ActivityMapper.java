@@ -35,6 +35,12 @@ public interface ActivityMapper extends BaseMapper<Activity> {
             @Param("reviewerId") Long reviewerId
     );
 
+    int updateReview(
+            @Param("id") Long id,
+            @Param("reviewImageUrl") String reviewImageUrl,
+            @Param("reviewContent") String reviewContent
+    );
+
     int incrementRegistrationCount(@Param("id") Long id);
 
     int decrementRegistrationCount(@Param("id") Long id);

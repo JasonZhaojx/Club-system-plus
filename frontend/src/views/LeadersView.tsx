@@ -7,7 +7,7 @@ export default function LeadersView() {
         <div>
           <p className="profile-eyebrow">Leadership</p>
           <h1>重要成员</h1>
-          <p>核心成员负责社团方向、活动质量、部门协作和对外资源连接。</p>
+          <p>主席团和部门负责人共同负责学联方向、活动质量、内部协作和对外资源连接。</p>
         </div>
       </div>
       <div className="leader-grid">

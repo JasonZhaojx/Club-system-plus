@@ -3,6 +3,15 @@ spring:
     name: backend
   profiles:
     default: dev
+  sql:
+    init:
+      mode: never
+      encoding: UTF-8
+  flyway:
+    enabled: true
+    locations: classpath:db/migration
+    baseline-on-migrate: true
+    baseline-version: 0
 
 server:
   port: 8080
@@ -76,3 +85,10 @@ app:
     provider: ${STORAGE_PROVIDER:minio}
   file-storage:
     max-image-size-bytes: 5242880
+  ai:
+    enabled: ${AI_ENABLED:false}
+    base-url: ${AI_BASE_URL:https://api.openai.com/v1}
+    api-key: ${AI_API_KEY:}
+    model: ${AI_MODEL:gpt-4o-mini}
+    temperature: ${AI_TEMPERATURE:0.2}
+    max-tokens: ${AI_MAX_TOKENS:700}

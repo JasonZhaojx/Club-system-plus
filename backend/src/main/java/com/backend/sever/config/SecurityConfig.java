@@ -5,6 +5,7 @@ import com.backend.common.auth.JwtProperties;
 import com.backend.sever.common.Result;
 import com.backend.sever.exception.ErrorCode;
 import com.fasterxml.jackson.databind.ObjectMapper;
+import jakarta.servlet.DispatcherType;
 import jakarta.servlet.http.HttpServletResponse;
 import org.springframework.boot.context.properties.EnableConfigurationProperties;
 import org.springframework.context.annotation.Bean;
@@ -46,8 +47,10 @@ public class SecurityConfig {
                 .logout(AbstractHttpConfigurer::disable)
                 .sessionManagement(session -> session.sessionCreationPolicy(SessionCreationPolicy.STATELESS))
                 .authorizeHttpRequests(auth -> {
+                    auth.dispatcherTypeMatchers(DispatcherType.ASYNC, DispatcherType.ERROR).permitAll();
                     auth.requestMatchers(
                             "/health",
+                            "/error",
                             "/auth/register",
                             "/auth/login",
                             "/auth/password-reset/code",

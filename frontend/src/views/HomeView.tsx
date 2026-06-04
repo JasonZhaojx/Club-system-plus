@@ -27,21 +27,24 @@ export default function HomeView() {
   }, [])
 
   return (
-    <section className="content public-page">
+    <section className="content public-page home-page">
       <div className="public-hero">
         <div className="public-hero-copy">
-          <p className="profile-eyebrow">Club System Plus</p>
-          <h1>连接校园人才、真实项目与高质量活动体验</h1>
+          <p className="profile-eyebrow">UNSW CSA · 澳大利亚中国大使馆官方认证</p>
+          <h1>新南威尔士大学中国学联</h1>
           <p>
-            面向技术、产品、设计和运营方向的综合型学生社团。我们用企业级项目方法组织活动，
-            让成员在真实协作中积累作品、经验和长期伙伴关系。
+            自 1992 年成立至今，新南学联已走过三十余载春秋。我们始终秉持“家，因为有你”的理念，
+            为每一位远渡重洋的学子打造一片归属之地。
           </p>
           <div className="hero-actions">
             <Link className="primary-link" to="/activities">
               浏览活动
             </Link>
             <Link className="secondary-link" to="/about">
-              了解社团
+              了解学联
+            </Link>
+            <Link className="secondary-link" to="/join">
+              加入我们
             </Link>
           </div>
         </div>
@@ -49,28 +52,28 @@ export default function HomeView() {
 
       <section className="metric-strip">
         <div>
-          <strong>40+</strong>
+          <strong>7千+</strong>
+          <span>年度会员</span>
+        </div>
+        <div>
+          <strong>200+</strong>
           <span>年度活动</span>
         </div>
         <div>
-          <strong>800+</strong>
-          <span>参与人次</span>
+          <strong>4万+</strong>
+          <span>公众号订阅</span>
         </div>
         <div>
-          <strong>4</strong>
-          <span>核心部门</span>
-        </div>
-        <div>
-          <strong>12+</strong>
-          <span>合作嘉宾</span>
+          <strong>35万+</strong>
+          <span>小红书阅读</span>
         </div>
       </section>
 
       <section className="home-activity-section">
         <div className="home-activity-intro">
-          <p className="profile-eyebrow">Past Events</p>
-          <h2>过往活动</h2>
-          <p>浏览已经完成的重点活动，查看主题、形式和复盘内容。</p>
+          <p className="profile-eyebrow">Activities</p>
+          <h2>丰富多彩的校园生活</h2>
+          <p>从开学迎新到年终盛典，从学术拓展到文化传承，每一个时刻我们都陪伴在你身边。</p>
           <Link className="view-all-link" to="/activities">
             查看全部活动
           </Link>

@@ -1,4 +1,4 @@
-# Club System Plus 任务与数据库设计规划
+﻿# Club System Plus 任务与数据库设计规划
 
 ## 1. 文档目标
 
@@ -692,6 +692,24 @@
 | created_at | DATETIME | 创建时间 |
 | updated_at | DATETIME | 更新时间 |
 
+#### `assistant_faq`
+
+用途：保存智能助手可检索的常见问题知识库，用于在 AI 不可用或需要可控答案时提供兜底回复和引用来源。
+
+| 字段 | 类型 | 说明 |
+| --- | --- | --- |
+| id | BIGINT PK | FAQ ID |
+| question | VARCHAR(255) | 问题 |
+| answer | TEXT | 答案 |
+| category | VARCHAR(50) | 分类，例如 membership、activity、coupon、rbac |
+| enabled | TINYINT | 是否启用 |
+| created_at | DATETIME | 创建时间 |
+| updated_at | DATETIME | 更新时间 |
+
+索引：
+
+- `idx_assistant_faq_enabled_category(enabled, category)`
+
 #### `operation_log`
 
 用途：保存管理后台关键操作日志。
@@ -737,6 +755,7 @@
 拆表原因：
 
 - `system_config` 是低频配置数据。
+- `assistant_faq` 是智能助手知识库数据，和业务主表解耦，便于独立维护、启停和扩展分类。
 - `operation_log` 是关键业务操作审计。
 - `api_access_log` 是高频访问数据，增长速度远高于其他业务表，必须独立，后期适合按月归档。
 
@@ -755,6 +774,7 @@
 | 审核日志拆分 | `activity_review_log` | 审核动作需要追加追踪，不能只保存最终状态 |
 | 优惠券批次与用户资产拆分 | `coupon_batch`、`user_coupon` | 发放规则和用户持有记录生命周期不同 |
 | 使用记录拆分 | `coupon_use_record` | 使用核销需要审计追踪 |
+| 智能助手知识库拆分 | `assistant_faq` | FAQ 是可运营内容，不应硬编码在服务代码里 |
 | 访问日志拆分 | `api_access_log` | 日志增长快，避免拖慢核心业务表 |
 
 ### 7.2 暂不做物理分库分表的原因
@@ -807,6 +827,7 @@ backend/src/main/java/com/backend/
   activity/
   coupon/
   dashboard/
+  assistant/
   log/
   system/
 ```
@@ -820,6 +841,7 @@ backend/src/main/java/com/backend/
 - `activity`：活动、报名、抢票、审核。
 - `coupon`：优惠券批次、领取、核销。
 - `dashboard`：统计指标。
+- `assistant`：智能助手、FAQ 检索、AI 兜底和使用限制。
 - `log`：操作日志和访问日志。
 - `system`：配置和系统维护。
 
@@ -862,7 +884,7 @@ backend/src/main/java/com/backend/
 - `activity_change_request`
 - `activity_review_log`
 
-优惠券、抢票、访问日志可以放到第二阶段。
+优惠券、抢票、访问日志可以放到第二阶段。若启用智能助手功能，还必须同步创建 `assistant_faq` 表并初始化基础 FAQ 数据。
 
 ## 11. 风险与注意事项
 
@@ -872,10 +894,11 @@ backend/src/main/java/com/backend/
 4. 活动修改申请建议用 JSON 快照保存变更内容，但正式活动表仍然保持结构化字段。
 5. 访问日志不要在请求主链路中做复杂统计，统计任务可以异步或定时执行。
 6. 数据库字段状态值要和 Java 枚举保持一致，避免出现魔法字符串。
+7. 新增功能表后必须保证初始化 SQL、Flyway 迁移文件和当前数据库状态一致，避免代码查询不存在的表。例如启用 Assistant 功能时必须执行 `V2__create_assistant_faq.sql`。
 
 ## 12. 建议下一步
 
-1. 先根据本文创建数据库初始化 SQL。
+1. 先根据本文创建数据库初始化 SQL，并统一通过 Flyway 执行迁移。
 2. 补充后端统一响应、异常处理、基础包结构。
 3. 实现 `sys_user` 注册登录。
 4. 实现 RBAC 权限表和初始化数据。

@@ -2,6 +2,7 @@ package com.backend.sever.service.impl;
 
 import com.backend.common.auth.UserPrincipal;
 import com.backend.pojo.dto.ActivityCreateDTO;
+import com.backend.pojo.dto.ActivityReviewUpdateDTO;
 import com.backend.pojo.dto.ActivityUpdateDTO;
 import com.backend.pojo.entity.Activity;
 import com.backend.pojo.entity.ActivityRegistration;
@@ -76,8 +77,8 @@ public class ActivityServiceImpl implements com.backend.sever.service.ActivitySe
     }
 
     @Override
-    public PageVO<ActivityVO> listPublicActivities(String keyword, String category, String sort, int page, int size) {
-        String cacheKey = PUBLIC_LIST_CACHE_PREFIX + cachePart(keyword) + ":" + cachePart(category) + ":" + cachePart(sort) + ":" + page + ":" + size;
+    public PageVO<ActivityVO> listPublicActivities(String keyword, String category, ActivityStatus status, String sort, int page, int size) {
+        String cacheKey = PUBLIC_LIST_CACHE_PREFIX + cachePart(keyword) + ":" + cachePart(category) + ":" + cachePart(status == null ? null : status.name()) + ":" + cachePart(sort) + ":" + page + ":" + size;
         PageVO<ActivityVO> localCached = publicListLocalCache.getIfPresent(cacheKey);
         if (localCached != null) {
             return localCached;
@@ -87,7 +88,7 @@ public class ActivityServiceImpl implements com.backend.sever.service.ActivitySe
             publicListLocalCache.put(cacheKey, cached);
             return cached;
         }
-        PageVO<ActivityVO> result = listActivities(keyword, category, null, true, sort, page, size);
+        PageVO<ActivityVO> result = listActivities(keyword, category, status, true, sort, page, size);
         writeCache(cacheKey, result, 30);
         publicListLocalCache.put(cacheKey, result);
         return result;
@@ -150,6 +151,25 @@ public class ActivityServiceImpl implements com.backend.sever.service.ActivitySe
         }
         fillActivity(activity, request);
         activityMapper.updateActivity(activity);
+        evictPublicActivityCaches(activityId);
+        return ActivityVO.from(activityMapper.selectById(activityId));
+    }
+
+    @Override
+    @Transactional
+    public ActivityVO updateActivityReview(Long activityId, ActivityReviewUpdateDTO request) {
+        Activity activity = requireActivity(activityId);
+        if (activity.getStatus() != ActivityStatus.ENDED) {
+            throw new BusinessException(ErrorCode.CONFLICT, "只有已结束活动可以维护回顾内容");
+        }
+        if (request == null) {
+            throw new BusinessException(ErrorCode.BAD_REQUEST, "活动回顾信息不能为空");
+        }
+        String reviewImageUrl = normalizeOptional(request.getReviewImageUrl(), 500);
+        String reviewContent = normalizeOptional(request.getReviewContent(), 4000);
+        if (activityMapper.updateReview(activityId, reviewImageUrl, reviewContent) == 0) {
+            throw new BusinessException(ErrorCode.CONFLICT, "活动回顾保存失败");
+        }
         evictPublicActivityCaches(activityId);
         return ActivityVO.from(activityMapper.selectById(activityId));
     }
