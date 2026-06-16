@@ -92,3 +92,5 @@ app:
     model: ${AI_MODEL:gpt-4o-mini}
     temperature: ${AI_TEMPERATURE:0.2}
     max-tokens: ${AI_MAX_TOKENS:700}
+  google-maps:
+    api-key: ${GOOGLE_MAPS_API_KEY:}

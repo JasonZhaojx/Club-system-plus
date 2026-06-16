@@ -1,0 +1,88 @@
+<?xml version="1.0" encoding="UTF-8"?>
+<!DOCTYPE mapper
+        PUBLIC "-//mybatis.org//DTD Mapper 3.0//EN"
+        "https://mybatis.org/dtd/mybatis-3-mapper.dtd">
+<mapper namespace="com.backend.sever.mapper.RestaurantReviewMapper">
+    <resultMap id="RestaurantReviewVoMap" type="com.backend.pojo.vo.RestaurantReviewVO">
+        <id column="id" property="id"/>
+        <result column="restaurant_id" property="restaurantId"/>
+        <result column="user_id" property="userId"/>
+        <result column="username" property="username"/>
+        <result column="nickname" property="nickname"/>
+        <result column="avatar_url" property="avatarUrl"/>
+        <result column="rating" property="rating"/>
+        <result column="content" property="content"/>
+        <result column="created_at" property="createdAt"/>
+        <result column="updated_at" property="updatedAt"/>
+    </resultMap>
+
+    <select id="selectReviewPage" parameterType="map" resultMap="RestaurantReviewVoMap">
+        select rr.id,
+               rr.restaurant_id,
+               rr.user_id,
+               u.username,
+               u.nickname,
+               u.avatar_url,
+               rr.rating,
+               rr.content,
+               rr.created_at,
+               rr.updated_at
+        from restaurant_review rr
+        inner join app_user u on u.id = rr.user_id
+        where rr.restaurant_id = #{restaurantId}
+          and rr.status = 'NORMAL'
+        order by rr.updated_at desc, rr.id desc
+        limit #{size}
+        offset #{offset}
+    </select>
+
+    <select id="countReviews" parameterType="long" resultType="long">
+        select count(1)
+        from restaurant_review
+        where restaurant_id = #{restaurantId}
+          and status = 'NORMAL'
+    </select>
+
+    <insert id="upsertReview" parameterType="map">
+        insert into restaurant_review (restaurant_id, user_id, rating, content, status)
+        values (#{restaurantId}, #{userId}, #{rating}, #{content}, 'NORMAL')
+        on duplicate key update
+            rating = values(rating),
+            content = values(content),
+            status = 'NORMAL',
+            updated_at = current_timestamp
+    </insert>
+
+    <insert id="refreshRatingStat" parameterType="long">
+        insert into restaurant_rating_stat (
+            restaurant_id,
+            rating_avg,
+            review_count,
+            rating_1_count,
+            rating_2_count,
+            rating_3_count,
+            rating_4_count,
+            rating_5_count
+        )
+        select #{restaurantId},
+               coalesce(round(avg(rating), 2), 0.00),
+               count(1),
+               sum(case when rating = 1 then 1 else 0 end),
+               sum(case when rating = 2 then 1 else 0 end),
+               sum(case when rating = 3 then 1 else 0 end),
+               sum(case when rating = 4 then 1 else 0 end),
+               sum(case when rating = 5 then 1 else 0 end)
+        from restaurant_review
+        where restaurant_id = #{restaurantId}
+          and status = 'NORMAL'
+        on duplicate key update
+            rating_avg = values(rating_avg),
+            review_count = values(review_count),
+            rating_1_count = values(rating_1_count),
+            rating_2_count = values(rating_2_count),
+            rating_3_count = values(rating_3_count),
+            rating_4_count = values(rating_4_count),
+            rating_5_count = values(rating_5_count),
+            updated_at = current_timestamp
+    </insert>
+</mapper>

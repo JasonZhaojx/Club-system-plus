@@ -1,3 +1,35 @@
+delete from activity_registration
+where activity_id in (
+    select id
+    from activity
+    where title not in (
+        '学期迎新摆摊和派对',
+        '学期期末加油包',
+        '周常社交运动局',
+        '文化美食夜市摆摊',
+        '汪汪解压局',
+        '职规Networking & Peer Mentoring',
+        '澳洲八大新生行前会',
+        '南半球官方电竞比赛',
+        '留学人员中秋国庆晚会',
+        '「月下巡航」万圣节游轮派对'
+    )
+);
+
+delete from activity
+where title not in (
+    '学期迎新摆摊和派对',
+    '学期期末加油包',
+    '周常社交运动局',
+    '文化美食夜市摆摊',
+    '汪汪解压局',
+    '职规Networking & Peer Mentoring',
+    '澳洲八大新生行前会',
+    '南半球官方电竞比赛',
+    '留学人员中秋国庆晚会',
+    '「月下巡航」万圣节游轮派对'
+);
+
 insert into activity (
     title, summary, detail, category, category_name, image_url, review_image_url, review_content, location,
     start_time, end_time, capacity, registered_count, status, required_role_code, creator_id, published_at

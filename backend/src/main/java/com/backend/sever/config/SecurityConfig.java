@@ -25,7 +25,7 @@ import java.nio.charset.StandardCharsets;
 
 @Configuration
 @EnableMethodSecurity
-@EnableConfigurationProperties({JwtProperties.class, AppSecurityProperties.class})
+@EnableConfigurationProperties({JwtProperties.class, AppSecurityProperties.class, GoogleMapsProperties.class})
 public class SecurityConfig {
     private final ObjectMapper objectMapper;
     private final AppSecurityProperties securityProperties;
@@ -64,7 +64,7 @@ public class SecurityConfig {
                                 "/v3/api-docs/**"
                         ).permitAll();
                     }
-                    auth.requestMatchers(HttpMethod.GET, "/activities", "/activities/*").permitAll()
+                    auth.requestMatchers(HttpMethod.GET, "/activities", "/activities/*", "/restaurants/**", "/geo/places/**").permitAll()
                             .anyRequest().authenticated();
                 })
                 .exceptionHandling(exception -> exception.authenticationEntryPoint((request, response, authException) -> {

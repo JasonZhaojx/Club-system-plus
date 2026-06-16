@@ -8,6 +8,7 @@ import AdminView from '@/views/AdminView'
 import CouponsView from '@/views/CouponsView'
 import DashboardView from '@/views/DashboardView'
 import DepartmentsView from '@/views/DepartmentsView'
+import FoodMapView from '@/views/FoodMapView'
 import ForgotPasswordView from '@/views/ForgotPasswordView'
 import HomeView from '@/views/HomeView'
 import JoinView from '@/views/JoinView'
@@ -113,6 +114,10 @@ const router = createBrowserRouter([
             <CouponsView />
           </RequireLogin>
         ),
+      },
+      {
+        path: 'food-map',
+        element: <FoodMapView />,
       },
       {
         path: 'activities/:activityId',

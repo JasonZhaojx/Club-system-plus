@@ -1,0 +1,55 @@
+<?xml version="1.0" encoding="UTF-8"?>
+<!DOCTYPE mapper
+        PUBLIC "-//mybatis.org//DTD Mapper 3.0//EN"
+        "https://mybatis.org/dtd/mybatis-3-mapper.dtd">
+<mapper namespace="com.backend.sever.mapper.RestaurantMapper">
+    <resultMap id="RestaurantVoMap" type="com.backend.pojo.vo.RestaurantVO">
+        <id column="id" property="id"/>
+        <result column="name" property="name"/>
+        <result column="address" property="address"/>
+        <result column="latitude" property="latitude"/>
+        <result column="longitude" property="longitude"/>
+        <result column="category" property="category"/>
+        <result column="price_level" property="priceLevel"/>
+        <result column="website_url" property="websiteUrl"/>
+        <result column="cover_url" property="coverUrl"/>
+        <result column="status" property="status"/>
+        <result column="rating_avg" property="ratingAvg"/>
+        <result column="review_count" property="reviewCount"/>
+    </resultMap>
+
+    <sql id="RestaurantVoColumns">
+        r.id,
+        r.name,
+        r.address,
+        r.latitude,
+        r.longitude,
+        r.category,
+        r.price_level,
+        r.website_url,
+        r.cover_url,
+        r.status,
+        coalesce(s.rating_avg, 0.00) as rating_avg,
+        coalesce(s.review_count, 0) as review_count
+    </sql>
+
+    <select id="selectNearbyCandidates" parameterType="map" resultMap="RestaurantVoMap">
+        select <include refid="RestaurantVoColumns"/>
+        from restaurant r
+        left join restaurant_rating_stat s on s.restaurant_id = r.id
+        where r.status = 'ACTIVE'
+          and r.latitude between #{minLat} and #{maxLat}
+          and r.longitude between #{minLng} and #{maxLng}
+        <if test="category != null and category != ''">
+          and r.category = #{category}
+        </if>
+    </select>
+
+    <select id="selectDetail" parameterType="long" resultMap="RestaurantVoMap">
+        select <include refid="RestaurantVoColumns"/>
+        from restaurant r
+        left join restaurant_rating_stat s on s.restaurant_id = r.id
+        where r.id = #{id}
+          and r.status = 'ACTIVE'
+    </select>
+</mapper>

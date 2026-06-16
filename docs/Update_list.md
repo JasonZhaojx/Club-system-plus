@@ -1065,3 +1065,12 @@ app:
 
 - `backend/src/main/resources/db/` 需要纳入版本控制，否则迁移 SQL 在其他环境不会跟随代码提交。
 - 当前启动兜底是为了修复历史数据库未被 Flyway 管理的问题；长期仍应保证新环境统一通过 Flyway 初始化和迁移数据库。
+
+## 2026-06-04: Project architecture and interview guide documentation
+
+- Added `docs/project_architecture_interview_guide.md` for resume and interview preparation.
+- Documented overall architecture, Docker Compose deployment architecture, backend/frontend technology stack, core modules, and main business flows.
+- Added Mermaid diagrams for system architecture, deployment, login/authentication, activity cache, activity registration, and coupon seckill flows.
+- Summarized QPS test data from `docs/qps_test_records.md`, including activity list throughput improvement from `3192.0/sec` to `5562.2/sec` after Caffeine + Redis caching.
+- Added resume-ready project descriptions for backend and full-stack roles.
+- Added common interview questions and answer points covering JWT/RBAC, MySQL schema design, Redis caching, RabbitMQ seckill async processing, Sentinel rate limiting, JMeter pressure testing, MinIO upload security, Flyway migration, and AI Assistant design.

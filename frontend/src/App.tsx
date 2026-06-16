@@ -72,6 +72,7 @@ export default function App() {
           <NavLink to="/departments">部门展示</NavLink>
           <NavLink to="/leaders">重要成员</NavLink>
           <NavLink to="/coupons">优惠券</NavLink>
+          <NavLink to="/food-map">美食地图</NavLink>
           {user && <NavLink to="/my">我的</NavLink>}
           {canAccessDashboard(user) && <NavLink to="/dashboard">数据面板</NavLink>}
         </nav>
