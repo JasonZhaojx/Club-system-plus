@@ -1,6 +1,6 @@
 # Cloudflare + GitHub 内容发布 PoC
 
-本目录是云端接入实现，不是部署完成记录。真实邮箱登录、GitHub 权限、Pages 发布以及免费额度下的运行表现都需要账号联调验收。旧网站与 `legacy` 不受影响。
+本目录记录云端实现和配置。2026-09-26 用户已完成真实邮箱登录、私有草稿保存、首次 Pages 自动发布与草稿隔离验证；完整验收仍未完成。验收证据及剩余事项见 [项目状态](../context/project-status.md)。旧网站与 `legacy` 不受影响。
 
 ## 实现范围
 
@@ -17,7 +17,7 @@ PoC 用独立 `*.workers.dev` 后台和 `*.pages.dev` 展示地址，不必先�
 
 ### 1. 建立私有内容仓库
 
-在同一个 GitHub 组织创建私有内容仓库（例如 `UNSWCSA/unswcsa-content`）。用 `content-state.example.json` 初始化其 `main` 分支的 `content/state.json`。不要把真实草稿提交到本代码仓库；Worker 会拒绝使用公开内容仓库。
+在 UNSWCSA 个人 GitHub 账号下创建私有内容仓库（例如 `UNSWCSA/unswcsa-content`）。用 `content-state.example.json` 初始化其 `main` 分支的 `content/state.json`。不要把真实草稿提交到本代码仓库；Worker 会拒绝使用公开内容仓库。
 
 ### 2. 配置 GitHub App
 
@@ -29,7 +29,7 @@ App 只安装到代码与内容这两个仓库。所需仓库权限为 Contents 
 openssl pkcs8 -topk8 -nocrypt -in /path/to/downloaded-key.pem -out /path/to/app-pkcs8.pem
 ```
 
-输入输出都在受控本机位置，不把密钥内容打印到终端。App 权限创建/安装由持有组织权限的人执行。
+输入输出都在受控本机位置，不把密钥内容打印到终端。App 创建和安装由有权限管理该个人账号及目标仓库的人执行。
 
 ### 3. 建立 Cloudflare 项目和 Access
 
@@ -44,7 +44,7 @@ openssl pkcs8 -topk8 -nocrypt -in /path/to/downloaded-key.pem -out /path/to/app-
 | `ACCESS_ISSUER` / `ACCESS_AUD` | Access team URL / 应用 AUD |
 | `ADMIN_ORIGIN` | 后台 `https://...workers.dev`，无末尾斜杠 |
 | `PUBLIC_ORIGIN` | 展示站 `https://...pages.dev`，无末尾斜杠 |
-| `CONTENT_REPO` / `CONTENT_BRANCH` | 私有内容仓库 `组织/名称` / `main` |
+| `CONTENT_REPO` / `CONTENT_BRANCH` | 私有内容仓库 `账号或组织/仓库名` / `main` |
 | `CODE_REPO` / `CODE_BRANCH` | `UNSWCSA/unswcsa-web` / `main` |
 | `GITHUB_APP_ID` / `GITHUB_INSTALLATION_ID` | 上一步记录的 ID |
 
@@ -96,7 +96,10 @@ npm run check
 
 `check` 是 dry-run，不发布。自动测试使用模拟 GitHub 响应和本地签名 JWT，验证逻辑但不代表真实服务联调。公开构建单独运行不会生成内容，需要发布工作流写入 `published.json`；不要直接拿空构建当作已完成网站部署。
 
-## 必须进行的真实验收
+## 真实验收清单（逐项记录，不代表全部通过）
+
+已确认：允许邮箱登录、私有仓库保存、首次发布成功、后台确认已上线，以及后续只保存草稿不改变公开内容。首次工作流约 42 秒。尚无第二次发布、云端拒绝访问、冲突、失败恢复及回滚的完整证据。2026-09-28 本地已实现同内容和代码版本复用、持久化派发资格及重试前状态检查，尚未部署验收。网络响应丢失时仍存在重复任务的极端可能，不能宣称跨 GitHub 提交与派发的严格 exactly-once。
+
 
 - 允许邮箱收到验证码并登录，其他邮箱/伪造或失效 JWT 被拒绝；直接请求草稿和资源不能绕过 Access。
 - 保存草稿产生私有仓库提交，公开页面仍旧；无权限、分支规则拒绝及过期 SHA 有明确失败结果。
@@ -119,3 +122,25 @@ npm run check
 - [GitHub 文件更新接口](https://docs.github.com/en/rest/repos/contents)
 - [显式触发 Actions 工作流](https://docs.github.com/en/rest/actions/workflows)
 - [Pages Direct Upload](https://developers.cloudflare.com/pages/get-started/direct-upload/)
+
+## 2026-09-28 去重与故障恢复实现
+
+- 相同草稿内容和代码 SHA 复用 release；排队、运行或已确认上线时不再次派发。失败版本使用明确的“重试发布”，不通过重复点击发布创建新版本。
+- 派发前以内容文件 SHA 条件写入 `dispatchRequestedAt` 和 `dispatchAttempt`，跨 Worker 实例争用时只有一个写入成功；失败的旧请求返回 409。
+- 提交后的两分钟内复用现有请求，以覆盖 Actions 任务可见性的延迟。超过窗口后检查线上版本和任务；状态查询失败不派发。代码改变后拒绝重试旧 release，应重新发布。
+- GitHub 文件提交与 workflow dispatch 不是原子事务。响应丢失或任务超过两分钟仍不可见时，显式重试可能重复创建任务；已有构建串行队列和相同线上版本跳过上传保护仍保留。
+- 本地新增六项模拟测试：并发发布、排队与上线复用、构建失败后并发重试和恢复、派发响应丢失／状态接口故障、保存失败与代码版本变化、新内容发布及较新失败不被旧成功掩盖。共 16 项云端逻辑测试通过，前后台类型检查与构建通过。
+- 这里的构建失败和恢复是模拟 GitHub 任务状态与公开版本响应，未真正破坏云端构建、未执行 Pages 回滚，也不证明真实平台故障时的所有行为。
+
+### 部署后验收
+
+1. 推送代码到 main；后台前端以正确 PUBLIC_ORIGIN 构建后，单独部署 Worker（Actions 仅部署公开站）：
+   ```sh
+   # frontend 目录
+   VITE_PUBLIC_ORIGIN=https://unswcsa-web-poc.pages.dev npm run build:cloud-admin
+   # cloud 目录
+   npm run deploy
+   ```
+2. 发布后重复点击同版本发布或重试，检查 Actions 不增加任务；首次派发后的两分钟内应复用请求。
+3. 双标签页使用同一草稿版本同时操作，一份写入成功，另一份拒绝过期版本。
+4. 云端构建失败与 Pages 上一版恢复仍需在 PoC 项目单独演练并记录。不要删除真实凭据制造故障，不修改旧官网。

@@ -63,7 +63,7 @@ export function createWorker({ authenticateUser = authenticate, makeGithub = git
         for (const chunk of chunks) { bytes.set(chunk, offset); offset += chunk.length }
         let input
         try { input = JSON.parse(new TextDecoder().decode(bytes)) } catch { throw new HttpError(400, '请求格式无效。') }
-        return json(await changeContent(github, action, input))
+        return json(await changeContent(github, action, input, { publicOrigin: env.PUBLIC_ORIGIN }))
       } catch (error) {
         return json({ error: error instanceof HttpError ? error.message : '服务暂时不可用，请稍后重试。' }, error instanceof HttpError ? error.status : 503)
       }

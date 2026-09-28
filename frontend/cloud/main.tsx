@@ -5,7 +5,7 @@ import '../poc/style.css'
 declare const __ADMIN_BUILD__: boolean
 type Content = { introduction: string }
 type Release = { id: string; content: Content; codeSha: string; requestedAt: string }
-type Document = { revision: string; state: { draft: Content; release: Release | null }; dispatchFailed?: boolean }
+type Document = { revision: string; state: { draft: Content; release: Release | null }; dispatchFailed?: boolean; reused?: boolean; retryRequired?: boolean }
 type Status = { status: 'none' | 'live' | 'publishing' | 'verifying' | 'failed' | 'not-started'; id?: string }
 const publicOrigin = import.meta.env.VITE_PUBLIC_ORIGIN || ''
 const adminOrigin = import.meta.env.VITE_ADMIN_ORIGIN || ''
@@ -61,8 +61,8 @@ function Admin() {
         <button className="secondary" disabled={busy} onClick={() => { if (!dirty || window.confirm('重新加载会替换当前输入，请先复制需要保留的文字。')) void run(async () => accept(await api<Document>('draft'))) }}>加载最新版本</button></div>
       <p className="hint">草稿版本：{doc.revision.slice(0, 8)}</p></section>
       <aside className="panel"><h2>发布状态</h2><p role="status">{labels[status.status]}</p><p className="hint">提交成功不代表已上线。系统每 15 秒核对线上版本。</p>
-        <button disabled={busy || dirty} onClick={() => void run(async () => { const next = await api<Document>('publish', { revision: doc.revision }); accept(next); setStatus({ status: next.dispatchFailed ? 'not-started' : 'publishing', id: next.state.release?.id }); setMessage(next.dispatchFailed ? '发布请求已保存，但启动构建失败。请点击重试发布。' : '发布请求已提交，等待构建和线上确认。') })}>发布已保存草稿</button>
-        {doc.state.release && status.status !== 'live' && <button className="secondary" disabled={busy || dirty} onClick={() => void run(async () => { accept(await api<Document>('retry', { revision: doc.revision })); await refreshStatus(); setMessage('已重新请求构建，同一发布版本不会被重复部署。') })}>重试发布</button>}
+        <button disabled={busy || dirty} onClick={() => void run(async () => { const next = await api<Document>('publish', { revision: doc.revision }); accept(next); setStatus({ status: next.dispatchFailed ? 'not-started' : 'publishing', id: next.state.release?.id }); await refreshStatus(); setMessage(next.retryRequired ? '此版本尚未上线，请使用重试发布。' : next.reused ? '已复用现有发布，请查看发布状态。' : next.dispatchFailed ? '构建启动结果未确认。请等待至少两分钟后重试，避免重复任务。' : '发布请求已提交，等待构建和线上确认。') })}>发布已保存草稿</button>
+        {doc.state.release && status.status !== 'live' && <button className="secondary" disabled={busy || dirty} onClick={() => void run(async () => { const next = await api<Document>('retry', { revision: doc.revision }); accept(next); await refreshStatus(); setMessage(next.reused ? '已复用现有发布；刚提交的请求请等待至少两分钟再检查。' : next.dispatchFailed ? '构建启动结果未确认，请稍后检查状态再重试。' : '已重新请求构建。') })}>重试发布</button>}
         <a className="standalone" href={publicOrigin} target="_blank" rel="noreferrer">查看官网 ↗</a><p className="hint">需要恢复时，由技术部通过 Git 历史与部署平台操作。</p></aside></div>
       {preview && <div style={{ marginTop: 24 }}><p className="preview-note">私有草稿预览 · {doc.revision.slice(0, 8)} · 尚未公开</p><Intro content={doc.state.draft} /></div>}</>}
   </>
