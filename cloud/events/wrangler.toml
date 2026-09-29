@@ -1,0 +1,14 @@
+name = "csa-events"
+main = "worker.mjs"
+compatibility_date = "2026-09-28"
+workers_dev = true
+preview_urls = false
+keep_vars = true
+
+[assets]
+directory = "./public"
+binding = "ASSETS"
+not_found_handling = "single-page-application"
+run_worker_first = true
+# Dashboard Text: EVENTBRITE_ORGANIZATION_ID
+# Dashboard Secret: EVENTBRITE_PRIVATE_TOKEN
