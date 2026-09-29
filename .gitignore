@@ -8,6 +8,7 @@ dist/
 dist-poc/
 dist-admin/
 dist-site/
+dist-events/
 .wrangler/
 .dev.vars*
 wrangler.local.toml

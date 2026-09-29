@@ -13,7 +13,7 @@
 
 草稿与编辑规则也已确认：私有保存草稿，登录后预览，新上传未发布图片受保护；技术部通过提前沟通错开编辑，系统保留简单版本检查。具体配置由 Step 3 验证。
 
-Step 3 已有独立 [本地原型](../frontend/poc/README.md) 和 [Cloudflare/GitHub 接入实现与配置说明](../cloud/README.md)。截至 2026-09-26，真实云端邮箱登录、私有草稿保存、首次自动发布和草稿隔离已验证；异常恢复、回滚、扩展内容模型、图片及 Eventbrite 验收尚未完成，当前仍处于 Step 3。最新证据与下一步见 `project-status.md`。
+Step 3 已有独立 [本地原型](../frontend/poc/README.md) 和 [Cloudflare/GitHub 接入实现与配置说明](../cloud/README.md)。截至 2026-09-29，真实云端邮箱登录、私有草稿保存、自动发布、草稿隔离及 Eventbrite 独立 Worker 真实活动展示已验证；异常恢复、回滚、扩展内容模型、图片及 Eventbrite 完整验收尚未完成，当前仍处于 Step 3。可并行准备隔离的六页骨架的顺序建议已记录，但尚未启动 Step 4 或宣布 Step 3 完成。最新证据与下一步见 `project-status.md`。
 
 ## 文档优先级
 

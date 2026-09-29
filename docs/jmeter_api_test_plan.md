@@ -1,6 +1,6 @@
 # JMeter API 测试计划
 
-> 文档范围（2026-09-24）：本文保留旧完整平台的说明、规划或历史记录，不作为新版需求及实施进度依据。新版以 [context 文档入口](../context/README.md) 为准，六个页面方案已确认；第二阶段需求冻结已完成；新版采用自建 /admin、GitHub 内容文件与自动构建发布，Eventbrite 独立提供活动，草稿私有保存、预览和未发布新图片受保护，下一步进行数据源 PoC；最新进度见 context/project-status.md。
+> 文档范围（2026-09-29 核对）：本文正文保留旧完整平台的说明、规划和历史测试记录，不作为新版需求或当前进度依据。新版以 [context 文档入口](../context/README.md) 和 [项目状态](../context/project-status.md) 为准。内容发布与 Eventbrite 独立云端读取已打通；Step 3 完整验收尚未完成，Step 4 六页骨架尚未启动。旧正文中的“当前”“下一步”均指原记录时点。
 
 本文档用于配置 JMeter 压力测试 / QPS 测试。所有接口路径基于当前后端实际 Controller。
 

@@ -37,10 +37,10 @@ npm run build:poc
 
 ## 下一步
 
-云端接入实现已新增于 `../../cloud/`，详见其 README；本目录仍只运行本地测试接口。真实 Cloudflare 登录、GitHub 发布和 Eventbrite 验收尚未完成，不将新增代码误记为已上线。
+云端接入实现已新增于 `../../cloud/`，详见其 README；本目录仍只运行本地测试接口。截至 2026-09-29，独立云端实现已验证真实 Cloudflare 登录、GitHub 内容发布、草稿隔离及 Eventbrite 活动展示；完整异常验收尚未完成，见 `../../context/project-status.md`。这些结果不改变本目录仅供本地测试的边界。
 
 优先使用现有 React、GitHub 私有内容仓库、Cloudflare Access / Workers / Pages 和 GitHub Actions 的免费额度。图片阶段再评估 R2（超出免费额度会计费），本轮不启用付费服务。
 
-将 `api.ts` 中的本地适配层接到 Workers；替换本地登录为受邀邮箱验证，同时验证服务端权限；接入 GitHub App、私有草稿、指定版本构建与最终部署状态。独立开展真实 Eventbrite 读取及失败自动恢复验证。这些均未在本轮实现。
+云端实现位于 `frontend/cloud`、`cloud/src` 和 `cloud/events`；后续新版页面整合应复用对应云端适配逻辑，不直接公开本目录的测试登录接口。失败自动恢复、React 活动适配层和其他剩余验收按实施计划推进。
 
 依赖安装报告现有锁文件包含 11 项漏洞（2 low、2 moderate、7 high），尚未逐项评估或升级；对外部署前需审计并处理相关依赖。本轮未改动依赖版本。
