@@ -34,6 +34,4 @@ export type ResolveEventStatus = (event: PublicEvent, now: Date) => EventStatus
 export interface EventSource {
   /** Success with [] is empty; failed or partial pagination is an error. */
   readEvents(options?: ReadOptions): Promise<ReadResult<PublicEvent[]>>
-  /** The identifier must be an Eventbrite ID, never a legacy activity ID. */
-  readEvent(eventbriteId: string, options?: ReadOptions): Promise<ReadResult<PublicEvent>>
 }

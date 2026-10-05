@@ -33,7 +33,7 @@ export interface HomeContent {
   slogan: string
   introduction: string[]
   honors: string[]
-  featuredBrandEventSlugs: string[]
+  groupPhoto: ImageReference | null
   joinIntroduction: string
 }
 
@@ -57,13 +57,13 @@ export interface TeamYear {
 }
 
 export interface BrandEvent {
-  /** Stable URL identifier; changing the title must not change this value. */
+  /** Stable content identifier; no public detail route. */
   slug: string
   title: string
   summary: string
   cover: ImageReference | null
-  highlights: Array<{ label: string; value: string }>
-  photos: ImageReference[]
+  /** Verified Eventbrite event URL; null leaves the card without a link. */
+  eventbriteUrl: string | null
 }
 
 export interface JoinContent {
