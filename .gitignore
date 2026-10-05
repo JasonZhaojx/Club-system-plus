@@ -8,6 +8,7 @@ dist/
 dist-poc/
 dist-admin/
 dist-site/
+dist-site-preview/
 dist-events/
 .wrangler/
 .dev.vars*
@@ -30,3 +31,6 @@ backups/
 *.dump
 *.bak
 *.sql.gz
+
+# Generated design previews
+/output/design-*/

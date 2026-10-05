@@ -1,0 +1,19 @@
+:root {
+  font-family: "PingFang SC", "Microsoft YaHei", sans-serif;
+  color: #20242c;
+  background: #fff;
+  line-height: 1.6;
+  --brand-navy: #03207b;
+  --brand-red: #ae1f25;
+  --brand-blue: #2559bd;
+  --brand-sky: #7bc4ec;
+}
+
+* { box-sizing: border-box; }
+body { margin: 0; }
+main { max-width: 1200px; margin: auto; padding: 48px 24px; }
+h1 { color: var(--brand-navy); font-size: clamp(2rem, 5vw, 3.5rem); }
+a { color: var(--brand-blue); text-underline-offset: 0.2em; }
+a:focus-visible { outline: 3px solid var(--brand-navy); outline-offset: 4px; }
+.site-logo { display: block; width: 220px; max-width: 100%; height: auto; }
+.eyebrow { margin-top: 48px; color: var(--brand-navy); }

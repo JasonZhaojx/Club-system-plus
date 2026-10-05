@@ -10,7 +10,13 @@ on:
         type: string
   push:
     branches: [main]
-    paths: ['frontend/**', 'cloud/**', '.github/workflows/publish-content.yml']
+    paths:
+      - 'frontend/**'
+      - 'cloud/**'
+      - '.github/workflows/publish-content.yml'
+      # New site development must not deploy over the content PoC.
+      - '!frontend/site/**'
+      - '!frontend/vite.site.config.mjs'
 
 permissions:
   contents: read
