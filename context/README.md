@@ -13,13 +13,13 @@
 
 草稿与编辑规则也已确认：私有保存草稿，登录后预览，新上传未发布图片受保护；技术部通过提前沟通错开编辑，系统保留简单版本检查。具体配置由 Step 3 验证。
 
-Step 3 已有独立 [本地原型](../frontend/poc/README.md) 和 [Cloudflare/GitHub 接入实现与配置说明](../cloud/README.md)。截至 2026-09-29，真实云端邮箱登录、私有草稿保存、自动发布、草稿隔离及 Eventbrite 独立 Worker 真实活动展示已验证；异常恢复、回滚、扩展内容模型、图片及 Eventbrite 完整验收尚未完成，当前仍处于 Step 3。可并行准备隔离的六页骨架的顺序建议已记录，但尚未启动 Step 4 或宣布 Step 3 完成。最新证据与下一步见 `project-status.md`。
+Step 3 已有独立 [本地原型](../frontend/poc/README.md) 和 [Cloudflare/GitHub 接入实现与配置说明](../cloud/README.md)。截至 2026-09-29，真实云端邮箱登录、私有草稿保存、自动发布、草稿隔离及 Eventbrite 独立 Worker 真实活动展示已验证；异常恢复、回滚、扩展内容模型、图片及 Eventbrite 完整验收尚未完成，当前仍处于 Step 3。Step 4 已开始隔离开发，Step 3 尚未宣布完成。最新证据与下一步见 `project-status.md`。
 
 ## 文档优先级
 
-2026-10-05：已建立 [新版独立入口](../frontend/site/README.md)，可通过 `npm run dev:site` 本地预览；当前仅入口确认页与 404，六页视觉实现及数据接入尚未完成，未切换线上站点。
+2026-10-05：已建立 [新版独立入口](../frontend/site/README.md)，可通过 `npm run dev:site` 本地预览；公共布局及首页视觉已实现，导航和首页按钮可操作；其余五页和详情仍为占位，真实数据尚未接入，未切换线上站点。
 
-Step 4 路由和展示层读取边界已确认，见 [路由与数据约定](routes-and-data-contract.md)；已添加两个读取入口的类型定义，尚未实现六页骨架或切换发布入口。Step 3 继续验收。
+Step 4 路由和展示层读取边界已确认，见 [路由与数据约定](routes-and-data-contract.md)；已添加两个读取入口的类型定义，尚未完成六页实现或切换发布入口。Step 3 继续验收。
 
 - 新版简化改造以本目录中的文件和用户最新明确要求为准。
 - 仓库原有 README、PRD、代码和配置用于理解现状，不代表新版仍需保留原有功能。
